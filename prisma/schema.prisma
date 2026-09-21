@@ -30,6 +30,7 @@ model Article {
   body             String
   image            String
   imageAlt         String
+  coverImage       String?
   author           String
   source           String?
   tags             String        @default("")

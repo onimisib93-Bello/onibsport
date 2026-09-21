@@ -18,7 +18,7 @@ async function main() {
     const category = await prisma.category.findUniqueOrThrow({ where: { slug: a.category } });
     await prisma.article.upsert({
       where: { slug: a.slug },
-      update: {},
+      update: { coverImage: a.coverImage },
       create: {
         slug: a.slug,
         title: a.title,
@@ -26,6 +26,7 @@ async function main() {
         body: a.body.join("\n\n"),
         image: a.image,
         imageAlt: a.imageAlt,
+        coverImage: a.coverImage,
         author: a.author,
         source: a.source,
         tags: a.tags.join(", "),

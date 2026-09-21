@@ -8,6 +8,7 @@ import { accentText } from "@/lib/accent";
 import { timeAgo } from "@/lib/time";
 import ArticleCard from "@/components/ArticleCard";
 import ShareBar from "@/components/ShareBar";
+import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return articles.map((a) => ({ slug: a.slug }));
@@ -17,20 +18,31 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const article = getArticle(slug);
   if (!article) return {};
+  const category = getCategory(article.category);
+
   return {
     title: article.title,
     description: article.dek,
+    keywords: article.tags,
+    alternates: { canonical: `/article/${article.slug}` },
+    authors: [{ name: article.author }],
     openGraph: {
       title: article.title,
       description: article.dek,
       type: "article",
-      images: [{ url: article.image }],
+      publishedTime: article.publishedAt,
+      modifiedTime: article.publishedAt,
+      authors: [article.author],
+      section: category?.name,
+      tags: article.tags,
+      url: `/article/${article.slug}`,
+      images: [{ url: article.coverImage, width: 1200, height: 630, alt: article.imageAlt }],
     },
     twitter: {
       card: "summary_large_image",
       title: article.title,
       description: article.dek,
-      images: [article.image],
+      images: [article.coverImage],
     },
   };
 }
@@ -43,8 +55,21 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const category = getCategory(article.category);
   const related = getRelatedArticles(article);
 
+  const jsonLd = [
+    newsArticleJsonLd(article, category),
+    breadcrumbJsonLd([
+      { name: "Home", path: "/" },
+      ...(category ? [{ name: category.name, path: `/category/${category.slug}` }] : []),
+      { name: article.title, path: `/article/${article.slug}` },
+    ]),
+  ];
+
   return (
     <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      {jsonLd.map((data, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+      ))}
+
       <div className="flex items-center gap-3">
         {category && (
           <Link href={`/category/${category.slug}`} className={`text-sm font-semibold ${accentText[category.accent]}`}>
@@ -103,9 +128,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       {article.tags.length > 0 && (
         <div className="mt-8 flex flex-wrap gap-2">
           {article.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/70">
+            <Link
+              key={tag}
+              href={`/search?q=${encodeURIComponent(tag)}`}
+              className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/70 hover:bg-line hover:text-indigo"
+            >
               {tag}
-            </span>
+            </Link>
           ))}
         </div>
       )}

@@ -28,6 +28,7 @@ export interface Article {
   publishedAt: string;
   image: string;
   imageAlt: string;
+  coverImage: string;
   body: string[];
   tags: string[];
   isBreaking?: boolean;

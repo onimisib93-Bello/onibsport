@@ -16,6 +16,7 @@ export interface ArticleFormValues {
   body: string;
   image: string;
   imageAlt: string;
+  coverImage: string;
   author: string;
   source: string;
   tags: string;
@@ -51,6 +52,7 @@ export default function ArticleForm({
       body: "",
       image: "/placeholders/pl-title-race.jpg",
       imageAlt: "",
+      coverImage: "/covers/pl-title-race-cover.jpg",
       author: "",
       source: "",
       tags: "",
@@ -210,6 +212,17 @@ export default function ArticleForm({
             className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-ink">Cover image (social share / SEO, 1200×630)</label>
+        <p className="mt-0.5 text-xs text-muted">Shown when the article is shared on social media and in search results. Defaults to the image path above if left blank.</p>
+        <input
+          value={values.coverImage}
+          onChange={(e) => update("coverImage", e.target.value)}
+          placeholder={values.image}
+          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm font-mono focus:border-indigo focus:outline-none"
+        />
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">

@@ -6,6 +6,7 @@ import { getFixturesByLeague } from "@/lib/data/fixtures";
 import ArticleCard from "@/components/ArticleCard";
 import MatchCard from "@/components/MatchCard";
 import { accentBg } from "@/lib/accent";
+import { breadcrumbJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
@@ -15,9 +16,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const category = getCategory(slug);
   if (!category) return {};
+  const description = `The latest ${category.name} news, match reports, transfer talk and results on Onibsport.`;
   return {
     title: category.name,
-    description: `The latest ${category.name} news, match reports and transfer talk on Onibsport.`,
+    description,
+    keywords: [category.name, `${category.name} news`, `${category.name} results`, "Onibsport"],
+    alternates: { canonical: `/category/${category.slug}` },
+    openGraph: {
+      title: `${category.name} — Onibsport`,
+      description,
+      type: "website",
+      url: `/category/${category.slug}`,
+      images: [{ url: "/covers/default-cover.jpg", width: 1200, height: 630, alt: `Onibsport — ${category.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${category.name} — Onibsport`,
+      description,
+      images: ["/covers/default-cover.jpg"],
+    },
   };
 }
 
@@ -30,8 +47,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const fixtures = getFixturesByLeague(slug);
   const [featured, ...rest] = articles;
 
+  const jsonLd = breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    { name: category.name, path: `/category/${category.slug}` },
+  ]);
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={`${accentBg[category.accent]} py-8 text-white`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <p className="text-sm font-semibold text-white/70">Onibsport</p>

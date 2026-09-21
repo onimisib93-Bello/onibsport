@@ -3,9 +3,26 @@ import { fixtures } from "@/lib/data/fixtures";
 import { categories } from "@/lib/data/categories";
 import LiveScoresView from "@/components/LiveScoresView";
 
+const description = "Live football scores, results and upcoming fixtures across the world's top leagues and the NPFL.";
+
 export const metadata: Metadata = {
   title: "Live Scores",
-  description: "Live football scores, results and upcoming fixtures across the world's top leagues and the NPFL.",
+  description,
+  keywords: ["live football scores", "football results", "NPFL fixtures", "Premier League scores"],
+  alternates: { canonical: "/live-scores" },
+  openGraph: {
+    title: "Live Scores — Onibsport",
+    description,
+    type: "website",
+    url: "/live-scores",
+    images: [{ url: "/covers/default-cover.jpg", width: 1200, height: 630, alt: "Onibsport Live Scores" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Live Scores — Onibsport",
+    description,
+    images: ["/covers/default-cover.jpg"],
+  },
 };
 
 export default function LiveScoresPage() {

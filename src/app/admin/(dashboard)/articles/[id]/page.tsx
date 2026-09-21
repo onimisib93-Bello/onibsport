@@ -40,6 +40,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             body: article.body,
             image: article.image,
             imageAlt: article.imageAlt,
+            coverImage: article.coverImage ?? article.image,
             author: article.author,
             source: article.source ?? "",
             tags: article.tags,

@@ -35,6 +35,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       body: data.body,
       image: data.image,
       imageAlt: data.imageAlt,
+      coverImage: data.coverImage || data.image,
       author: data.author,
       source: data.source || null,
       tags: data.tags || "",

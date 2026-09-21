@@ -11,6 +11,7 @@ export const articleInputSchema = z.object({
   body: z.string().min(1),
   image: z.string().min(1),
   imageAlt: z.string().min(1).max(200),
+  coverImage: z.string().max(300).optional().or(z.literal("")),
   author: z.string().min(1).max(120),
   source: z.string().max(200).optional().or(z.literal("")),
   tags: z.string().max(300).optional().or(z.literal("")),

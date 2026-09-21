@@ -4,6 +4,10 @@ function img(seed: string) {
   return `/placeholders/${seed}.jpg`;
 }
 
+function cover(seed: string) {
+  return `/covers/${seed}-cover.jpg`;
+}
+
 export const articles: Article[] = [
   {
     slug: "late-drama-title-race-blown-open",
@@ -13,6 +17,7 @@ export const articles: Article[] = [
     author: "Tunde Bakare",
     publishedAt: "2026-09-20T19:45:00Z",
     image: img("pl-title-race"),
+    coverImage: cover("pl-title-race"),
     imageAlt: "Players celebrating a last-minute goal under floodlights",
     tags: ["Premier League", "Title Race"],
     isBreaking: true,
@@ -32,6 +37,7 @@ export const articles: Article[] = [
     author: "Marta Delgado",
     publishedAt: "2026-09-20T21:10:00Z",
     image: img("laliga-derby"),
+    coverImage: cover("laliga-derby"),
     imageAlt: "Two La Liga players challenging for the ball at midfield",
     tags: ["La Liga", "Derby"],
     status: "published",
@@ -49,6 +55,7 @@ export const articles: Article[] = [
     author: "Luca Moretti",
     publishedAt: "2026-09-19T18:30:00Z",
     image: img("seriea-keeper"),
+    coverImage: cover("seriea-keeper"),
     imageAlt: "A goalkeeper making a diving save",
     tags: ["Serie A", "Records"],
     status: "published",
@@ -66,6 +73,7 @@ export const articles: Article[] = [
     author: "Hans Weber",
     publishedAt: "2026-09-18T17:00:00Z",
     image: img("bundesliga-wonderkid"),
+    coverImage: cover("bundesliga-wonderkid"),
     imageAlt: "A young footballer celebrating a goal with arms outstretched",
     tags: ["Bundesliga", "Rising Star"],
     status: "published",
@@ -83,6 +91,7 @@ export const articles: Article[] = [
     author: "Ines Moreau",
     publishedAt: "2026-09-17T20:00:00Z",
     image: img("ucl-comeback"),
+    coverImage: cover("ucl-comeback"),
     imageAlt: "Fans celebrating in a packed stadium under the Champions League lights",
     tags: ["Champions League", "Comeback"],
     status: "published",
@@ -100,6 +109,7 @@ export const articles: Article[] = [
     author: "Chiamaka Nwosu",
     publishedAt: "2026-09-20T12:00:00Z",
     image: img("super-eagles-squad"),
+    coverImage: cover("super-eagles-squad"),
     imageAlt: "Nigeria national football team players training together",
     tags: ["Super Eagles", "Nigeria"],
     isBreaking: true,
@@ -118,6 +128,7 @@ export const articles: Article[] = [
     author: "Chiamaka Nwosu",
     publishedAt: "2026-09-16T19:00:00Z",
     image: img("nigeria-women-team"),
+    coverImage: cover("nigeria-women-team"),
     imageAlt: "Nigerian women's national football team celebrating",
     tags: ["Nigeria", "Women's Football"],
     status: "published",
@@ -134,6 +145,7 @@ export const articles: Article[] = [
     author: "Emeka Obi",
     publishedAt: "2026-09-21T08:00:00Z",
     image: img("npfl-matchday"),
+    coverImage: cover("npfl-matchday"),
     imageAlt: "NPFL match action on a Nigerian football pitch",
     tags: ["NPFL", "Matchday Review"],
     status: "published",
@@ -151,6 +163,7 @@ export const articles: Article[] = [
     author: "Emeka Obi",
     publishedAt: "2026-09-14T15:30:00Z",
     image: img("rivers-united-caf"),
+    coverImage: cover("rivers-united-caf"),
     imageAlt: "Rivers United players in continental competition action",
     tags: ["NPFL", "CAF Confederation Cup"],
     status: "published",
@@ -167,6 +180,7 @@ export const articles: Article[] = [
     author: "Onibsport Transfers Desk",
     publishedAt: "2026-09-20T10:15:00Z",
     image: img("transfer-domino"),
+    coverImage: cover("transfer-domino"),
     imageAlt: "A footballer holding a new club's shirt at a press unveiling",
     tags: ["Transfers", "Rumour Mill"],
     status: "published",
@@ -184,6 +198,7 @@ export const articles: Article[] = [
     author: "Onibsport Transfers Desk",
     publishedAt: "2026-09-19T09:00:00Z",
     image: img("npfl-teen-scout"),
+    coverImage: cover("npfl-teen-scout"),
     imageAlt: "A young NPFL midfielder controlling the ball during a match",
     tags: ["Transfers", "NPFL", "Nigeria"],
     status: "published",
@@ -200,6 +215,7 @@ export const articles: Article[] = [
     author: "Onibsport Video Desk",
     publishedAt: "2026-09-20T22:00:00Z",
     image: img("video-highlights"),
+    coverImage: cover("video-highlights"),
     imageAlt: "Stadium floodlights over a packed football ground at night",
     tags: ["Highlights", "Video"],
     featuredVideoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",

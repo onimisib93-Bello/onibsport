@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       body: data.body,
       image: data.image,
       imageAlt: data.imageAlt,
+      coverImage: data.coverImage || data.image,
       author: data.author,
       source: data.source || null,
       tags: data.tags || "",
