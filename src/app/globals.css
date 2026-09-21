@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand palette, derived from the Onibsport mark */
+  --color-ink: #14121f;
+  --color-indigo: #2d1b69;
+  --color-indigo-dark: #201148;
+  --color-indigo-light: #4a3494;
+  --color-sky: #29abe2;
+  --color-sky-dark: #1c86b8;
+  --color-orange: #f7941d;
+  --color-gold: #fbb03b;
+  --color-paper: #f7f7fb;
+  --color-white: #ffffff;
+  --color-line: #e4e4ee;
+  --color-muted: #6b6b80;
+
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-ink: var(--color-ink);
+  --color-indigo: var(--color-indigo);
+  --color-indigo-dark: var(--color-indigo-dark);
+  --color-indigo-light: var(--color-indigo-light);
+  --color-sky: var(--color-sky);
+  --color-sky-dark: var(--color-sky-dark);
+  --color-orange: var(--color-orange);
+  --color-gold: var(--color-gold);
+  --color-paper: var(--color-paper);
+  --color-line: var(--color-line);
+  --color-muted: var(--color-muted);
+
+  --font-display: var(--font-bebas), sans-serif;
+  --font-body: var(--font-source-sans), sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--color-orange);
+  color: var(--color-white);
+}
+
+/* Tabular numerals for scores, minutes, dates — keeps the scoreboard from jittering */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    transform: translate(-50%, -16px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
