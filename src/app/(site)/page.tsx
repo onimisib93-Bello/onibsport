@@ -5,8 +5,11 @@ import TrendingSidebar from "@/components/TrendingSidebar";
 import NigeriaRail from "@/components/NigeriaRail";
 import FeaturedVideo from "@/components/FeaturedVideo";
 import TransferTicker from "@/components/TransferTicker";
+import YouTubeSection from "@/components/YouTubeSection";
+import AdSlot from "@/components/AdSlot";
 import Reveal from "@/components/motion/Reveal";
 import { getLatestArticles, getArticlesByCategory, articles } from "@/lib/data/articles";
+import { videos } from "@/lib/data/videos";
 
 export default function Home() {
   const latest = getLatestArticles(9);
@@ -24,6 +27,10 @@ export default function Home() {
         <HeroCarousel articles={heroSlides} />
       </section>
 
+      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+        <AdSlot variant="leaderboard" />
+      </div>
+
       <TransferTicker articles={transferArticles} />
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -34,7 +41,10 @@ export default function Home() {
               <ArticleCard key={article.slug} article={article} />
             ))}
           </Reveal>
-          <TrendingSidebar articles={trending} />
+          <div className="space-y-6">
+            <TrendingSidebar articles={trending} />
+            <AdSlot variant="sidebar" />
+          </div>
         </div>
       </section>
 
@@ -54,6 +64,12 @@ export default function Home() {
           ))}
         </Reveal>
       </section>
+
+      <YouTubeSection videos={videos} />
+
+      <div className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
+        <AdSlot variant="leaderboard" />
+      </div>
     </>
   );
 }

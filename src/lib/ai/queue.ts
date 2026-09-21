@@ -12,7 +12,7 @@ export interface SourceItem {
  * ingestion job. Swap this for a live source (licensed news API, NPFL/NFF
  * feeds, etc.) and keep the shape of SourceItem the same.
  */
-export const SOURCE_QUEUE: SourceItem[] = [
+export const SAMPLE_SOURCE_QUEUE: SourceItem[] = [
   {
     id: "src-1",
     headline: "Managers trade barbs ahead of Saturday's top-of-the-table clash",

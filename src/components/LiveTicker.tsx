@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { getLiveFixtures } from "@/lib/data/fixtures";
+import { getAllLiveFixtures } from "@/lib/live/footballData";
 
-export default function LiveTicker() {
-  const live = getLiveFixtures();
+export default async function LiveTicker() {
+  const live = await getAllLiveFixtures();
   if (live.length === 0) return null;
 
   const items = [...live, ...live]; // duplicated for seamless marquee loop

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { TwitterLogo, FacebookLogo, InstagramLogo, WhatsappLogo } from "@phosphor-icons/react/dist/ssr";
+import { TwitterLogo, FacebookLogo, InstagramLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { categories } from "@/lib/data/categories";
+import { SOCIAL_LINKS } from "@/lib/config";
 
 export default function Footer() {
   return (
@@ -19,11 +20,18 @@ export default function Footer() {
               Breaking football news, transfers, and match coverage — from the Premier League to the NPFL.
             </p>
             <div className="mt-5 flex gap-3">
-              {[TwitterLogo, FacebookLogo, InstagramLogo, WhatsappLogo].map((Icon, i) => (
+              {[
+                { Icon: TwitterLogo, href: SOCIAL_LINKS.twitter, label: "Follow Onibsport on X" },
+                { Icon: FacebookLogo, href: SOCIAL_LINKS.facebook, label: "Follow Onibsport on Facebook" },
+                { Icon: InstagramLogo, href: SOCIAL_LINKS.instagram, label: "Follow Onibsport on Instagram" },
+                { Icon: YoutubeLogo, href: SOCIAL_LINKS.youtube, label: "Subscribe to Onibsport on YouTube" },
+              ].map(({ Icon, href, label }) => (
                 <a
-                  key={i}
-                  href="#"
-                  aria-label="Follow Onibsport"
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
                   className="grid h-9 w-9 place-items-center rounded-full bg-white/10 transition-colors hover:bg-orange"
                 >
                   <Icon size={18} weight="fill" />

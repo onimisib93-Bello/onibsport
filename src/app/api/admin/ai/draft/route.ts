@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SOURCE_QUEUE } from "@/lib/ai/queue";
+import { getSourceQueue } from "@/lib/ai/alerts";
 import { generateDraft } from "@/lib/ai/draft";
 import { slugify } from "@/lib/slugify";
 
@@ -17,7 +17,8 @@ const CATEGORY_IMAGE_SEED: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   const { itemId } = await request.json().catch(() => ({}));
-  const source = SOURCE_QUEUE.find((s) => s.id === itemId);
+  const { items } = await getSourceQueue();
+  const source = items.find((s) => s.id === itemId);
   if (!source) {
     return NextResponse.json({ error: "Unknown source item." }, { status: 400 });
   }

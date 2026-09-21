@@ -14,11 +14,3 @@ export const fixtures: Fixture[] = [
   { id: "f11", league: "npfl", home: "Plateau United", away: "Shooting Stars", homeScore: null, awayScore: null, minute: null, status: "upcoming", kickoff: "2026-09-22T15:00:00Z" },
   { id: "f12", league: "nigeria-football", home: "Nigeria", away: "Benin Republic", homeScore: null, awayScore: null, minute: null, status: "upcoming", kickoff: "2026-09-25T18:00:00Z" },
 ];
-
-export function getFixturesByLeague(slug: string): Fixture[] {
-  return fixtures.filter((f) => f.league === slug);
-}
-
-export function getLiveFixtures(): Fixture[] {
-  return fixtures.filter((f) => f.status === "live");
-}

@@ -8,6 +8,8 @@ import { accentText } from "@/lib/accent";
 import { timeAgo } from "@/lib/time";
 import ArticleCard from "@/components/ArticleCard";
 import ShareBar from "@/components/ShareBar";
+import ReadMoreCallout from "@/components/ReadMoreCallout";
+import AdSlot from "@/components/AdSlot";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -54,6 +56,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const category = getCategory(article.category);
   const related = getRelatedArticles(article);
+  const midpoint = Math.ceil(article.body.length / 2);
+  const bodyFirstHalf = article.body.slice(0, midpoint);
+  const bodySecondHalf = article.body.slice(midpoint);
 
   const jsonLd = [
     newsArticleJsonLd(article, category),
@@ -118,11 +123,23 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <ShareBar title={article.title} path={`/article/${article.slug}`} />
 
       <div className="prose-onib mt-8 space-y-5">
-        {article.body.map((paragraph, i) => (
+        {bodyFirstHalf.map((paragraph, i) => (
           <p key={i} className="text-[17px] leading-[1.75] text-ink/90">
             {paragraph}
           </p>
         ))}
+
+        {related[0] && <ReadMoreCallout article={related[0]} />}
+
+        {bodySecondHalf.map((paragraph, i) => (
+          <p key={midpoint + i} className="text-[17px] leading-[1.75] text-ink/90">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <AdSlot variant="leaderboard" />
       </div>
 
       {article.tags.length > 0 && (

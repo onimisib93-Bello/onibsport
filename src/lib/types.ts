@@ -50,3 +50,13 @@ export interface Fixture {
   status: FixtureStatus;
   kickoff: string;
 }
+
+export interface StandingRow {
+  team: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+}
