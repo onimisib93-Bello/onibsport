@@ -16,6 +16,23 @@ import { SourceItem, SAMPLE_SOURCE_QUEUE } from "@/lib/ai/queue";
 
 const PER_FEED_LIMIT = 5;
 const TOTAL_LIMIT = 20;
+const MAX_AGE_HOURS = 48;
+
+/**
+ * Google's <title type="html"> and <content type="html"> elements have an
+ * attribute, so the parser returns { "@_type": "html", "#text": "..." }
+ * instead of a plain string — this unwraps that shape (and tolerates a
+ * plain string too, for feeds that don't use the attribute).
+ */
+function textValue(field: unknown): string {
+  if (typeof field === "string") return field;
+  if (typeof field === "number") return String(field);
+  if (field && typeof field === "object") {
+    const obj = field as Record<string, unknown>;
+    return textValue(obj["#text"]);
+  }
+  return "";
+}
 
 function stripHtml(input: string): string {
   return input
@@ -67,12 +84,21 @@ async function fetchOneFeed(feedUrl: string): Promise<SourceItem[]> {
     const data = parser.parse(xml);
 
     const rawItems = data?.feed?.entry ?? data?.rss?.channel?.item ?? [];
-    const items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+    const allItems = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+
+    const cutoff = Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000;
+    const recent = allItems.filter((item: Record<string, unknown>) => {
+      const published = textValue(item.published ?? item.pubDate ?? item.updated);
+      const time = Date.parse(published);
+      return Number.isNaN(time) ? true : time >= cutoff;
+    });
+    // If this alert had nothing in the last 48h, still surface its most recent hit rather than nothing.
+    const items = recent.length > 0 ? recent : allItems.slice(0, 1);
 
     return items.slice(0, PER_FEED_LIMIT).map((item: Record<string, unknown>, i: number): SourceItem => {
-      const title = stripHtml(String(item.title ?? "Untitled alert"));
+      const title = stripHtml(textValue(item.title)) || "Untitled alert";
       const summarySource = item.summary ?? item.content ?? item.description ?? "";
-      const summary = stripHtml(String(summarySource)) || title;
+      const summary = stripHtml(textValue(summarySource)) || title;
       const link = extractRealUrl(getLinkHref(item.link));
 
       return {
