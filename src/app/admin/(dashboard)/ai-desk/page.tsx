@@ -23,17 +23,18 @@ export default async function AiDeskPage() {
       {isLive ? (
         <div className="mt-4 rounded-xl border border-sky/30 bg-sky/5 p-4 text-sm text-ink/80">
           <span className="font-semibold text-sky-dark">Live queue:</span> these stories were just pulled from your Google Alerts RSS
-          feed.
+          feed(s).
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-line bg-paper p-4 text-sm text-ink/80">
           <span className="font-semibold text-ink">Sample queue:</span> no <code className="font-mono">NEWS_ALERTS_RSS_URL</code> is set
-          (or it returned nothing), so this is placeholder data. Create a Google Alert at{" "}
+          (or it returned nothing), so this is placeholder data. For each alert at{" "}
           <a href="https://google.com/alerts" target="_blank" rel="noopener noreferrer" className="text-indigo underline">
             google.com/alerts
-          </a>{" "}
-          for the keywords you want to track, set its delivery method to <span className="font-semibold">RSS feed</span> instead of
-          email, and paste that feed&apos;s URL into the <code className="font-mono">NEWS_ALERTS_RSS_URL</code> environment variable.
+          </a>
+          , switch its delivery method to <span className="font-semibold">RSS feed</span> instead of email and copy that alert&apos;s
+          feed link. Google gives each alert its own separate link — there&apos;s no single combined feed — so paste all of them into{" "}
+          <code className="font-mono">NEWS_ALERTS_RSS_URL</code> separated by commas to track them all at once.
         </div>
       )}
 

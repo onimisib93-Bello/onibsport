@@ -2,15 +2,20 @@ import { XMLParser } from "fast-xml-parser";
 import { SourceItem, SAMPLE_SOURCE_QUEUE } from "@/lib/ai/queue";
 
 /**
- * Pulls incoming stories from a Google Alerts RSS feed instead of the sample
+ * Pulls incoming stories from Google Alerts RSS feeds instead of the sample
  * queue. This session has no Gmail/email access, so RSS is the practical
- * substitute for "check my alert emails": create the alert at
- * google.com/alerts, set delivery to "RSS feed" instead of email, and paste
- * that feed's URL into NEWS_ALERTS_RSS_URL.
+ * substitute for "check my alert emails": for each alert at google.com/alerts,
+ * set delivery to "RSS feed" instead of email, and paste that feed's URL into
+ * NEWS_ALERTS_RSS_URL. Google gives each alert its own separate feed link —
+ * there's no single combined feed — so this accepts a comma-separated list of
+ * URLs, one per alert, and merges them into one queue.
  *
  * Google Alerts feeds are Atom, but this also tolerates classic RSS 2.0 in
- * case the URL is swapped for a different feed later.
+ * case a URL is swapped for a different feed later.
  */
+
+const PER_FEED_LIMIT = 5;
+const TOTAL_LIMIT = 20;
 
 function stripHtml(input: string): string {
   return input
@@ -43,10 +48,16 @@ function getLinkHref(link: unknown): string {
   return "";
 }
 
-export async function fetchAlertsQueue(): Promise<SourceItem[]> {
-  const feedUrl = process.env.NEWS_ALERTS_RSS_URL;
-  if (!feedUrl) return [];
+function getFeedUrls(): string[] {
+  const raw = process.env.NEWS_ALERTS_RSS_URL;
+  if (!raw) return [];
+  return raw
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
+async function fetchOneFeed(feedUrl: string): Promise<SourceItem[]> {
   try {
     const res = await fetch(feedUrl, { next: { revalidate: 300 } });
     if (!res.ok) return [];
@@ -58,14 +69,14 @@ export async function fetchAlertsQueue(): Promise<SourceItem[]> {
     const rawItems = data?.feed?.entry ?? data?.rss?.channel?.item ?? [];
     const items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
 
-    return items.slice(0, 10).map((item: Record<string, unknown>, i: number): SourceItem => {
+    return items.slice(0, PER_FEED_LIMIT).map((item: Record<string, unknown>, i: number): SourceItem => {
       const title = stripHtml(String(item.title ?? "Untitled alert"));
       const summarySource = item.summary ?? item.content ?? item.description ?? "";
       const summary = stripHtml(String(summarySource)) || title;
       const link = extractRealUrl(getLinkHref(item.link));
 
       return {
-        id: `alert-${i}-${Buffer.from(title).toString("base64url").slice(0, 10)}`,
+        id: `alert-${i}-${Buffer.from(feedUrl + title).toString("base64url").slice(0, 12)}`,
         headline: title,
         sourceName: "Google Alerts",
         sourceUrl: link || undefined,
@@ -76,6 +87,24 @@ export async function fetchAlertsQueue(): Promise<SourceItem[]> {
   } catch {
     return [];
   }
+}
+
+export async function fetchAlertsQueue(): Promise<SourceItem[]> {
+  const feedUrls = getFeedUrls();
+  if (feedUrls.length === 0) return [];
+
+  const results = await Promise.all(feedUrls.map(fetchOneFeed));
+  const combined = results.flat();
+
+  const seen = new Set<string>();
+  const deduped = combined.filter((item) => {
+    const key = item.headline.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return deduped.slice(0, TOTAL_LIMIT);
 }
 
 export interface SourceQueueResult {
