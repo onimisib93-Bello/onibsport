@@ -74,12 +74,27 @@ async function fetchFromFootballData<T>(path: string): Promise<T | null> {
   }
 }
 
+function isoDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * football-data.org returns the WHOLE season (~380 matches) if you don't
+ * bound it — so every call here is scoped to a rolling window of recent
+ * results and near-term fixtures rather than the full fixture list.
+ */
 export async function getFixturesForLeague(slug: CategorySlug): Promise<Fixture[]> {
   const code = COMPETITION_CODES[slug];
   const fallback = mockFixtures.filter((f) => f.league === slug);
   if (!code) return fallback;
 
-  const data = await fetchFromFootballData<{ matches: FootballDataMatch[] }>(`/competitions/${code}/matches`);
+  const dateFrom = isoDate(-14);
+  const dateTo = isoDate(21);
+  const data = await fetchFromFootballData<{ matches: FootballDataMatch[] }>(
+    `/competitions/${code}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`
+  );
   if (!data?.matches) return fallback;
 
   return data.matches.map((m) => ({
