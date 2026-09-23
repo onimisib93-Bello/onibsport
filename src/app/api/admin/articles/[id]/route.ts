@@ -40,6 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       source: data.source || null,
       tags: data.tags || "",
       isBreaking: !!data.isBreaking,
+      featured: !!data.featured,
       featuredVideoUrl: data.featuredVideoUrl || null,
       status: data.status,
       categoryId: data.categoryId,

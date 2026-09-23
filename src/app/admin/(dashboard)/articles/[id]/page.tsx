@@ -45,6 +45,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             source: article.source ?? "",
             tags: article.tags,
             isBreaking: article.isBreaking,
+            featured: article.featured,
             featuredVideoUrl: article.featuredVideoUrl ?? "",
             status: article.status,
             categoryId: article.categoryId,

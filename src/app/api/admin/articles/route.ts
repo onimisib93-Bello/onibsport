@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       source: data.source || null,
       tags: data.tags || "",
       isBreaking: !!data.isBreaking,
+      featured: !!data.featured,
       featuredVideoUrl: data.featuredVideoUrl || null,
       status: data.status,
       categoryId: data.categoryId,

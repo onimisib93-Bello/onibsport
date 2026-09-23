@@ -35,6 +35,7 @@ model Article {
   source           String?
   tags             String        @default("")
   isBreaking       Boolean       @default(false)
+  featured         Boolean       @default(false)
   featuredVideoUrl String?
   status           ArticleStatus @default(DRAFT)
   categoryId       String

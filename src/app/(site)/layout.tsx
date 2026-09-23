@@ -6,7 +6,7 @@ import LiveTicker from "@/components/LiveTicker";
 import Footer from "@/components/Footer";
 import NewsletterModal from "@/components/NewsletterModal";
 import BreakingToast from "@/components/BreakingToast";
-import { getBreakingArticles } from "@/lib/data/articles";
+import { getFirstBreakingArticle } from "@/lib/data/db-articles";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
 const bebas = Bebas_Neue({
@@ -58,8 +58,8 @@ export const viewport: Viewport = {
   themeColor: "#2d1b69",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [breaking] = getBreakingArticles();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const breaking = await getFirstBreakingArticle();
   const siteJsonLd = [organizationJsonLd(), websiteJsonLd()];
 
   return (

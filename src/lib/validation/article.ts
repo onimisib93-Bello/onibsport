@@ -16,6 +16,7 @@ export const articleInputSchema = z.object({
   source: z.string().max(200).optional().or(z.literal("")),
   tags: z.string().max(300).optional().or(z.literal("")),
   isBreaking: z.boolean().optional(),
+  featured: z.boolean().optional(),
   featuredVideoUrl: z.string().max(500).optional().or(z.literal("")),
   status: z.enum(["DRAFT", "PENDING_REVIEW", "PUBLISHED"]),
   categoryId: z.string().min(1),

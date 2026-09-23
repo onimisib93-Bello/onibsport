@@ -8,18 +8,37 @@ import TransferTicker from "@/components/TransferTicker";
 import YouTubeSection from "@/components/YouTubeSection";
 import AdSlot from "@/components/AdSlot";
 import Reveal from "@/components/motion/Reveal";
-import { getLatestArticles, getArticlesByCategory, articles } from "@/lib/data/articles";
+import {
+  getLatestArticles,
+  getFeaturedArticles,
+  getArticlesByCategory,
+  getFeaturedVideoArticle,
+} from "@/lib/data/db-articles";
 import { videos } from "@/lib/data/videos";
 
-export default function Home() {
-  const latest = getLatestArticles(9);
-  const heroSlides = [...latest].sort((a, b) => Number(!!b.isBreaking) - Number(!!a.isBreaking)).slice(0, 4);
-  const gridArticles = latest.slice(1, 7);
+export const revalidate = 60;
+
+export default async function Home() {
+  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle] = await Promise.all([
+    getLatestArticles(12),
+    getFeaturedArticles(6),
+    getArticlesByCategory("nigeria-football", 3),
+    getArticlesByCategory("npfl", 3),
+    getArticlesByCategory("transfers"),
+    getFeaturedVideoArticle(),
+  ]);
+
+  // Articles marked "Feature on homepage" in the admin get priority for the hero
+  // and Editor's Picks rails, while staying listed under their own category too.
+  const heroPool = featured.length > 0 ? featured : latest;
+  const heroSlides = [...heroPool].sort((a, b) => Number(!!b.isBreaking) - Number(!!a.isBreaking)).slice(0, 4);
+  const heroSlugs = new Set(heroSlides.map((a) => a.slug));
+  const gridArticles = latest.filter((a) => !heroSlugs.has(a.slug)).slice(0, 6);
   const trending = latest.slice(0, 5);
-  const nigeriaArticles = [...getArticlesByCategory("nigeria-football"), ...getArticlesByCategory("npfl")].slice(0, 3);
-  const transferArticles = getArticlesByCategory("transfers");
-  const videoArticle = articles.find((a) => a.featuredVideoUrl);
-  const editorsPicks = latest.slice(4, 7);
+  const nigeriaArticles = [...nigeriaFootball, ...npfl].slice(0, 3);
+  const editorsPicks = (featured.length > 0 ? featured : latest)
+    .filter((a) => !heroSlugs.has(a.slug))
+    .slice(0, 3);
 
   return (
     <>
@@ -56,14 +75,16 @@ export default function Home() {
         </Reveal>
       )}
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <SectionHeading title="Editor's Picks" accent="gold" />
-        <Reveal stagger className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {editorsPicks.map((article) => (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
-        </Reveal>
-      </section>
+      {editorsPicks.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+          <SectionHeading title="Editor's Picks" accent="gold" />
+          <Reveal stagger className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {editorsPicks.map((article) => (
+              <ArticleCard key={article.slug} article={article} />
+            ))}
+          </Reveal>
+        </section>
+      )}
 
       <YouTubeSection videos={videos} />
 

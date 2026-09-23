@@ -1,25 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
-import { articles } from "@/lib/data/articles";
+import { Article } from "@/lib/types";
 import ArticleCard from "@/components/ArticleCard";
 
 export default function SearchResults() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [results, setResults] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return articles.filter(
-      (a) =>
-        a.status === "published" &&
-        (a.title.toLowerCase().includes(q) ||
-          a.dek.toLowerCase().includes(q) ||
-          a.tags.some((t) => t.toLowerCase().includes(q)))
-    );
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
+    const controller = new AbortController();
+    const frame = requestAnimationFrame(() => setLoading(true));
+    const timer = setTimeout(() => {
+      fetch(`/api/articles/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
+        .then((res) => res.json())
+        .then((data) => setResults(data.articles ?? []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   return (
@@ -41,6 +50,8 @@ export default function SearchResults() {
       <div className="mt-8">
         {query.trim() === "" ? (
           <p className="text-muted">Start typing to search Onibsport&apos;s coverage.</p>
+        ) : loading ? (
+          <p className="text-muted">Searching…</p>
         ) : results.length === 0 ? (
           <p className="text-muted">No stories found for &ldquo;{query}&rdquo;.</p>
         ) : (

@@ -32,6 +32,7 @@ export interface Article {
   body: string[];
   tags: string[];
   isBreaking?: boolean;
+  featured?: boolean;
   featuredVideoUrl?: string;
   source?: string;
   status: ArticleStatus;

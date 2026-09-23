@@ -1,13 +1,15 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { categories, getCategory } from "@/lib/data/categories";
-import { getArticlesByCategory } from "@/lib/data/articles";
+import { getArticlesByCategory } from "@/lib/data/db-articles";
 import { getFixturesForLeague, getStandingsForLeague } from "@/lib/live/footballData";
 import ArticleCard from "@/components/ArticleCard";
 import LeagueDataTabs from "@/components/LeagueDataTabs";
 import AdSlot from "@/components/AdSlot";
 import { accentBg } from "@/lib/accent";
 import { breadcrumbJsonLd } from "@/lib/seo";
+
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
@@ -44,8 +46,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const category = getCategory(slug);
   if (!category) notFound();
 
-  const articles = getArticlesByCategory(slug);
-  const [fixtures, standings] = await Promise.all([
+  const [articles, fixtures, standings] = await Promise.all([
+    getArticlesByCategory(slug),
     getFixturesForLeague(category.slug),
     getStandingsForLeague(category.slug),
   ]);

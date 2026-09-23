@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { articles, getArticle, getRelatedArticles } from "@/lib/data/articles";
+import { getArticleBySlug, getRelatedArticles, getAllPublishedForSitemap } from "@/lib/data/db-articles";
 import { getCategory } from "@/lib/data/categories";
 import { accentText } from "@/lib/accent";
 import { timeAgo } from "@/lib/time";
@@ -12,13 +12,16 @@ import ReadMoreCallout from "@/components/ReadMoreCallout";
 import AdSlot from "@/components/AdSlot";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 
-export function generateStaticParams() {
-  return articles.map((a) => ({ slug: a.slug }));
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const rows = await getAllPublishedForSitemap();
+  return rows.map((a) => ({ slug: a.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getArticleBySlug(slug);
   if (!article) return {};
   const category = getCategory(article.category);
 
@@ -51,11 +54,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getArticleBySlug(slug);
   if (!article) notFound();
 
   const category = getCategory(article.category);
-  const related = getRelatedArticles(article);
+  const related = await getRelatedArticles(article);
   const midpoint = Math.ceil(article.body.length / 2);
   const bodyFirstHalf = article.body.slice(0, midpoint);
   const bodySecondHalf = article.body.slice(midpoint);
