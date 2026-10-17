@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Source_Sans_3 } from "next/font/google";
+import { Big_Shoulders, Archivo } from "next/font/google";
 import "../globals.css";
 import Header from "@/components/Header";
 import LiveTicker from "@/components/LiveTicker";
@@ -9,16 +9,18 @@ import BreakingToast from "@/components/BreakingToast";
 import { getFirstBreakingArticle } from "@/lib/data/db-articles";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
-const bebas = Bebas_Neue({
-  variable: "--font-bebas",
-  weight: "400",
+const shoulders = Big_Shoulders({
+  variable: "--font-shoulders",
   subsets: ["latin"],
+  axes: ["opsz"],
+  display: "swap",
 });
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  axes: ["wdth"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -55,7 +57,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#2d1b69",
+  themeColor: "#120a33",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -63,14 +65,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const siteJsonLd = [organizationJsonLd(), websiteJsonLd()];
 
   return (
-    <html lang="en" className={`${bebas.variable} ${sourceSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${shoulders.variable} ${archivo.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">
         {siteJsonLd.map((data, i) => (
           <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
         ))}
-        <Header />
+        <a
+          href="#main"
+          className="sr-only z-[100] rounded-full bg-orange px-4 py-2 font-semibold text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
         <LiveTicker />
-        <main className="flex-1">{children}</main>
+        <Header />
+        <main id="main" className="flex-1">
+          {children}
+        </main>
         <Footer />
         <BreakingToast article={breaking} />
         <NewsletterModal />

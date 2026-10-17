@@ -29,8 +29,8 @@ export default function AdSlot({ variant = "rectangle", imageSrc, imageAlt, href
   if (imageSrc && href) {
     return (
       <div className={className}>
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">Advertisement</p>
-        <a href={href} target="_blank" rel="noopener noreferrer sponsored" className={`relative block w-full overflow-hidden rounded-lg ${aspect}`}>
+        <p className="mb-1 text-[11px] font-semibold text-muted">Advertisement</p>
+        <a href={href} target="_blank" rel="noopener noreferrer sponsored" className={`relative block w-full overflow-hidden rounded-2xl ${aspect}`}>
           <Image src={imageSrc} alt={imageAlt ?? "Advertisement"} fill sizes="100vw" className="object-cover" />
         </a>
       </div>
@@ -39,10 +39,10 @@ export default function AdSlot({ variant = "rectangle", imageSrc, imageAlt, href
 
   return (
     <div className={className}>
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">Advertisement</p>
+      <p className="mb-1 text-[11px] font-semibold text-muted">Advertisement</p>
       <a
         href="mailto:onibsport@gmail.com?subject=Advertise%20on%20Onibsport"
-        className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-paper text-center transition-colors hover:border-indigo hover:bg-indigo/5 ${aspect}`}
+        className={`flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/15 bg-white/60 text-center transition-colors hover:border-indigo hover:bg-indigo/5 ${aspect}`}
       >
         <Megaphone size={24} weight="light" className="text-muted" />
         <span className="px-4 text-xs font-semibold text-muted">Advertise your brand here</span>

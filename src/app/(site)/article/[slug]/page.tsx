@@ -1,15 +1,18 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { getArticleBySlug, getRelatedArticles, getAllPublishedForSitemap } from "@/lib/data/db-articles";
+import { getArticleBySlug, getRelatedArticles, getAllPublishedForSitemap, getLatestArticles } from "@/lib/data/db-articles";
 import { getCategory } from "@/lib/data/categories";
-import { accentText } from "@/lib/accent";
-import { timeAgo } from "@/lib/time";
+import { leagueTheme } from "@/lib/leagues";
+import { timeAgo, formatDay, formatKickoff } from "@/lib/time";
+import { parseBlocks, plainText, readingMinutes, RenderBlock } from "@/lib/richText";
 import ArticleCard from "@/components/ArticleCard";
 import ShareBar from "@/components/ShareBar";
 import ReadMoreCallout from "@/components/ReadMoreCallout";
 import AdSlot from "@/components/AdSlot";
+import NewsImage from "@/components/ui/NewsImage";
+import ReadingProgress from "@/components/article/ReadingProgress";
+import ArticleVideo from "@/components/article/ArticleVideo";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 
 export const revalidate = 60;
@@ -58,10 +61,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   if (!article) notFound();
 
   const category = getCategory(article.category);
-  const related = await getRelatedArticles(article);
-  const midpoint = Math.ceil(article.body.length / 2);
-  const bodyFirstHalf = article.body.slice(0, midpoint);
-  const bodySecondHalf = article.body.slice(midpoint);
+  const theme = leagueTheme(article.category);
+  const [related, latest] = await Promise.all([getRelatedArticles(article, 4), getLatestArticles(8)]);
+  const blocks = parseBlocks(article.body);
+  const headings = blocks.flatMap((b) => (b.type === "h2" ? [b] : []));
+  const minutes = readingMinutes(article.body);
+
+  // A "read more" link roughly halfway down, placed after a paragraph rather than mid-section.
+  let midpoint = Math.ceil(blocks.length / 2);
+  while (midpoint < blocks.length && blocks[midpoint - 1]?.type !== "p") midpoint++;
+  const callout = related[0];
+  const moreLatest = latest.filter((a) => a.slug !== article.slug && !related.some((r) => r.slug === a.slug)).slice(0, 4);
+  const nextStory = moreLatest[0];
 
   const jsonLd = [
     newsArticleJsonLd(article, category),
@@ -73,102 +84,191 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   ];
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <>
+      <ReadingProgress color={theme.tint} />
       {jsonLd.map((data, i) => (
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
       ))}
 
-      <div className="flex items-center gap-3">
-        {category && (
-          <Link href={`/category/${category.slug}`} className={`text-sm font-semibold ${accentText[category.accent]}`}>
-            {category.name}
-          </Link>
-        )}
-        {article.isBreaking && (
-          <span className="rounded-full bg-orange px-2.5 py-0.5 text-xs font-bold text-white">Breaking</span>
-        )}
-      </div>
+      <article>
+        <header className="mx-auto max-w-[1100px] px-4 pt-8 sm:px-6 sm:pt-12">
+          <nav aria-label="Breadcrumb" className="text-sm text-muted">
+            <ol className="flex flex-wrap items-center gap-1.5">
+              <li>
+                <Link href="/" className="hover:text-ink">
+                  Home
+                </Link>
+              </li>
+              {category && (
+                <>
+                  <li aria-hidden="true">/</li>
+                  <li>
+                    <Link href={`/category/${category.slug}`} className="font-semibold hover:text-ink" style={{ color: theme.deep }}>
+                      {category.name}
+                    </Link>
+                  </li>
+                </>
+              )}
+            </ol>
+          </nav>
 
-      <h1 className="mt-3 font-display text-4xl leading-[1.05] tracking-wide text-ink sm:text-5xl">{article.title}</h1>
-      <p className="mt-3 text-lg leading-relaxed text-muted">{article.dek}</p>
+          {article.isBreaking && <p className="mt-5 inline-flex rounded-md bg-orange px-2.5 py-1 text-xs font-bold text-ink">Breaking</p>}
+          <h1 className="mt-4 max-w-[22ch] font-display text-[44px] font-black leading-[0.92] text-ink sm:text-7xl">{article.title}</h1>
+          <p className="mt-5 max-w-3xl text-xl leading-relaxed text-ink/70">{article.dek}</p>
 
-      <div className="mt-4 flex items-center gap-2 text-sm text-muted">
-        <span className="font-semibold text-ink">{article.author}</span>
-        <span>·</span>
-        <time dateTime={article.publishedAt}>{timeAgo(article.publishedAt)}</time>
-      </div>
-
-      {article.source && (
-        <p className="mt-2 text-xs text-muted">
-          Reporting based on information from <span className="font-semibold">{article.source}</span>.
-        </p>
-      )}
-
-      <div className="mt-6">
-        {article.featuredVideoUrl ? (
-          <div className="relative aspect-video overflow-hidden rounded-xl bg-ink">
-            <iframe
-              className="absolute inset-0 h-full w-full"
-              src={article.featuredVideoUrl}
-              title={article.title}
-              loading="lazy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-line py-4">
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-full font-display text-lg font-black text-white" style={{ background: theme.deep }}>
+                {article.author
+                  .split(/\s+/)
+                  .map((w) => w[0])
+                  .slice(0, 2)
+                  .join("")}
+              </span>
+              <div className="text-sm leading-tight">
+                <p className="font-bold text-ink">{article.author}</p>
+                <p className="text-muted">
+                  <time dateTime={article.publishedAt}>
+                    {formatDay(article.publishedAt, { day: "numeric", month: "long", year: "numeric" })}, {formatKickoff(article.publishedAt)} WAT
+                  </time>
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted">
+              {minutes} min read
+              <span className="mx-2" aria-hidden="true">
+                /
+              </span>
+              Updated {timeAgo(article.publishedAt)}
+            </p>
+            <div className="ml-auto">
+              <ShareBar title={article.title} path={`/article/${article.slug}`} />
+            </div>
           </div>
-        ) : (
-          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-line">
-            <Image src={article.image} alt={article.imageAlt} fill priority sizes="(min-width: 768px) 768px, 100vw" className="object-cover" />
-          </div>
-        )}
-      </div>
+        </header>
 
-      <ShareBar title={article.title} path={`/article/${article.slug}`} />
-
-      <div className="prose-onib mt-8 space-y-5">
-        {bodyFirstHalf.map((paragraph, i) => (
-          <p key={i} className="text-[17px] leading-[1.75] text-ink/90">
-            {paragraph}
-          </p>
-        ))}
-
-        {related[0] && <ReadMoreCallout article={related[0]} />}
-
-        {bodySecondHalf.map((paragraph, i) => (
-          <p key={midpoint + i} className="text-[17px] leading-[1.75] text-ink/90">
-            {paragraph}
-          </p>
-        ))}
-      </div>
-
-      <div className="mt-8">
-        <AdSlot variant="leaderboard" />
-      </div>
-
-      {article.tags.length > 0 && (
-        <div className="mt-8 flex flex-wrap gap-2">
-          {article.tags.map((tag) => (
-            <Link
-              key={tag}
-              href={`/search?q=${encodeURIComponent(tag)}`}
-              className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/70 hover:bg-line hover:text-indigo"
-            >
-              {tag}
-            </Link>
-          ))}
+        <div className="mx-auto mt-8 max-w-[1100px] px-4 sm:px-6">
+          {article.featuredVideoUrl ? (
+            <ArticleVideo src={article.featuredVideoUrl} title={article.title} poster={article.coverImage || article.image} />
+          ) : (
+            <figure>
+              <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-line">
+                <NewsImage src={article.coverImage || article.image} alt={article.imageAlt} fill priority sizes="(min-width: 1100px) 1100px, 100vw" className="object-cover" />
+              </div>
+              <figcaption className="mt-2 text-sm text-muted">{article.imageAlt}</figcaption>
+            </figure>
+          )}
         </div>
+
+        <div className="mx-auto grid max-w-[1100px] gap-10 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0">
+            <div className="story mx-auto max-w-[680px]">
+              {blocks.slice(0, midpoint).map((block, i) => (
+                <RenderBlock key={i} block={block} />
+              ))}
+              {callout && <ReadMoreCallout article={callout} />}
+              {blocks.slice(midpoint).map((block, i) => (
+                <RenderBlock key={midpoint + i} block={block} />
+              ))}
+            </div>
+
+            <div className="mx-auto mt-10 max-w-[680px] space-y-6">
+              {article.source && (
+                <p className="rounded-2xl bg-white p-4 text-sm text-muted ring-1 ring-line">
+                  Reporting based on information from <span className="font-semibold text-ink">{article.source}</span>.
+                </p>
+              )}
+              {article.tags.length > 0 && (
+                <div>
+                  <h2 className="text-sm font-semibold text-muted">Topics</h2>
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {article.tags.map((tag) => (
+                      <li key={tag}>
+                        <Link
+                          href={`/search?q=${encodeURIComponent(tag)}`}
+                          className="inline-flex rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-ink/80 ring-1 ring-line transition-colors hover:bg-night hover:text-white hover:ring-night"
+                        >
+                          {tag}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="border-t border-line pt-6">
+                <ShareBar title={article.title} path={`/article/${article.slug}`} />
+              </div>
+              <AdSlot variant="leaderboard" />
+            </div>
+          </div>
+
+          <aside className="hidden space-y-6 lg:block">
+            <div className="sticky top-32 space-y-6">
+              {headings.length > 1 && (
+                <nav aria-labelledby="toc-title" className="rounded-2xl bg-white p-5 ring-1 ring-line">
+                  <h2 id="toc-title" className="font-display text-2xl font-black text-ink">
+                    In this story
+                  </h2>
+                  <ol className="mt-3 space-y-2 text-sm">
+                    {headings.map((h) => (
+                      <li key={h.id}>
+                        <a href={`#${h.id}`} className="block font-semibold leading-snug text-ink/75 hover:text-indigo">
+                          {plainText(h.text)}
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              )}
+              {moreLatest.length > 0 && (
+                <div className="rounded-2xl bg-white p-5 ring-1 ring-line">
+                  <h2 className="font-display text-2xl font-black text-ink">Latest</h2>
+                  <ul className="mt-4 space-y-4">
+                    {moreLatest.map((a) => (
+                      <li key={a.slug}>
+                        <ArticleCard article={a} size="compact" />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <AdSlot variant="rectangle" />
+            </div>
+          </aside>
+        </div>
+      </article>
+
+      {nextStory && (
+        <section aria-label="Next story" className="mx-auto mt-16 max-w-[1100px] px-4 sm:px-6">
+          <Link href={`/article/${nextStory.slug}`} className="group relative block overflow-hidden rounded-3xl bg-night text-white">
+            <NewsImage
+              src={nextStory.coverImage || nextStory.image}
+              alt=""
+              fill
+              sizes="1100px"
+              className="object-cover opacity-40 transition-transform duration-[1200ms] group-hover:scale-105"
+            />
+            <span className="absolute inset-0 bg-gradient-to-r from-night via-night/70 to-transparent" />
+            <span className="relative block p-8 sm:p-12">
+              <span className="text-sm font-bold text-orange">Next story</span>
+              <span className="mt-2 block max-w-2xl font-display text-4xl font-black leading-[0.95] sm:text-5xl">{nextStory.title}</span>
+            </span>
+          </Link>
+        </section>
       )}
 
       {related.length > 0 && (
-        <div className="mt-14 border-t border-line pt-8">
-          <h2 className="font-display text-2xl tracking-wide text-ink">More {category?.name}</h2>
-          <div className="mt-6 grid gap-8 sm:grid-cols-3">
+        <section aria-labelledby="related-title" className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6">
+          <h2 id="related-title" className="font-display text-4xl font-black text-ink sm:text-5xl">
+            More {category?.name}
+          </h2>
+          <div className="mt-8 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {related.map((a) => (
               <ArticleCard key={a.slug} article={a} />
             ))}
           </div>
-        </div>
+        </section>
       )}
-    </article>
+    </>
   );
 }

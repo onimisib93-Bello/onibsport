@@ -1,25 +1,24 @@
 import Link from "next/link";
 import { Article } from "@/lib/types";
+import Marquee from "@/components/ui/Marquee";
 
 export default function TransferTicker({ articles }: { articles: Article[] }) {
   if (articles.length === 0) return null;
-  const items = [...articles, ...articles];
 
   return (
-    <div className="overflow-hidden border-y border-line bg-gradient-to-r from-orange to-gold text-white">
-      <div className="mx-auto flex max-w-6xl items-stretch">
-        <span className="z-10 flex shrink-0 items-center bg-ink px-3 py-2 text-xs font-bold tracking-wide sm:px-4">
-          Transfer Watch
-        </span>
-        <div className="group relative flex-1 overflow-hidden">
-          <div className="flex w-max animate-[ticker_32s_linear_infinite] gap-10 py-2 pl-6 group-hover:[animation-play-state:paused]">
-            {items.map((a, i) => (
-              <Link key={`${a.slug}-${i}`} href={`/article/${a.slug}`} className="flex shrink-0 items-center gap-2 text-sm font-semibold whitespace-nowrap hover:underline">
-                {a.title}
-              </Link>
-            ))}
-          </div>
-        </div>
+    <div className="border-y border-gold/40 bg-gold text-ink">
+      <div className="mx-auto flex h-12 max-w-[1400px] items-stretch">
+        <Link href="/category/transfers" className="flex shrink-0 items-center bg-ink px-4 font-display text-lg font-extrabold text-gold hover:text-white">
+          Transfer watch
+        </Link>
+        <Marquee label="Transfer headlines" seconds={Math.max(36, articles.length * 9)} controlClassName="border-l border-ink/15 text-ink/70 hover:text-ink">
+          {articles.map((a) => (
+            <Link key={a.slug} href={`/article/${a.slug}`} className="flex shrink-0 items-center gap-3 px-6 text-sm font-bold whitespace-nowrap hover:underline">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink/50" />
+              {a.title}
+            </Link>
+          ))}
+        </Marquee>
       </div>
     </div>
   );

@@ -1,24 +1,39 @@
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
-import { Accent } from "@/lib/types";
-import { accentBorder } from "@/lib/accent";
+import { cn } from "@/lib/utils";
 
 export default function SectionHeading({
   title,
   href,
-  accent = "indigo",
+  linkLabel = "See all",
+  color,
+  id,
+  tone = "light",
+  className,
 }: {
   title: string;
   href?: string;
-  accent?: Accent;
+  linkLabel?: string;
+  /** Short bar in front of the title, e.g. a league's kit colour. */
+  color?: string;
+  id?: string;
+  tone?: "light" | "dark";
+  className?: string;
 }) {
   return (
-    <div className={`flex items-end justify-between border-b-2 pb-3 ${accentBorder[accent]}`}>
-      <h2 className="font-display text-3xl tracking-wide text-ink">{title}</h2>
+    <div className={cn("flex items-end justify-between gap-4", className)}>
+      <h2 id={id} className={cn("flex items-center gap-3 font-display text-4xl font-black leading-none sm:text-5xl", tone === "dark" ? "text-white" : "text-ink")}>
+        {color && <span aria-hidden="true" className="h-8 w-2 rounded-full sm:h-10" style={{ background: color }} />}
+        {title}
+      </h2>
       {href && (
-        <Link href={href} className="flex items-center gap-1 text-sm font-semibold text-indigo hover:text-orange">
-          See all
-          <ArrowRight size={16} weight="bold" />
+        <Link
+          href={href}
+          className={cn(
+            "shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-colors",
+            tone === "dark" ? "border-white/25 text-white hover:bg-white hover:text-ink" : "border-line bg-white text-ink hover:border-ink"
+          )}
+        >
+          {linkLabel}
         </Link>
       )}
     </div>

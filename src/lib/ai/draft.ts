@@ -1,26 +1,84 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod";
 import { SourceItem } from "@/lib/ai/queue";
-import { fetchSourceArticleText } from "@/lib/ai/sourceText";
+import { fetchSourceArticle } from "@/lib/ai/sourceText";
+import { CategorySlug } from "@/lib/types";
+
+/** Model the AI Desk writes with. */
+const MODEL = "claude-sonnet-5";
+
+const CATEGORY_SLUGS = [
+  "premier-league",
+  "la-liga",
+  "serie-a",
+  "bundesliga",
+  "champions-league",
+  "nigeria-football",
+  "npfl",
+  "transfers",
+] as const satisfies readonly CategorySlug[];
+
+/** What the model must return — validated by the API against this schema. */
+const DraftSchema = z.object({
+  title: z.string().describe("Headline, ideally 50-70 characters, main keyword near the start."),
+  dek: z.string().describe("One-sentence standfirst that doubles as the meta description, under 160 characters."),
+  body: z.string().describe("The full article in the Onibsport markdown subset, blocks separated by a blank line."),
+  tags: z.array(z.string()).describe("4-6 specific tags: clubs, players, competition, topic."),
+  category: z.enum(CATEGORY_SLUGS).describe("The Onibsport hub this story belongs in."),
+  imageAlt: z.string().describe("Alt text for the lead photo: who/what is shown and where, under 125 characters."),
+});
 
 export interface GeneratedDraft {
   title: string;
   dek: string;
   body: string;
   tags: string;
+  category: CategorySlug;
+  imageAlt: string;
+  /** Share image found on the source page, if any. Needs rights clearance before publishing. */
+  sourceImage?: string;
+  /** Publisher of the source story, e.g. "BBC Sport". */
+  sourceOutlet: string;
+  sourceUrl?: string;
   isStub: boolean;
 }
 
-const SYSTEM_PROMPT = `You are the Onibsport AI Desk — acting as a veteran football chief editor with 15+ years running desks at major sports outlets, and as an expert SEO copywriter. You are handed raw source material (often the full text of another outlet's article, sometimes just a short alert snippet) about a football news item, and you produce an ORIGINAL, publication-ready Onibsport article from it. Never copy the source's sentences — read it for the facts, then write it fresh in your own voice.
+export interface InternalLink {
+  title: string;
+  url: string;
+}
 
-Rules:
-- Headline: punchy, attention-grabbing, high click-through — but it must accurately reflect the article body. No misleading or false claims, no clickbait that overpromises. Naturally include the main keyword (team/player/competition name) near the start.
-- Body: 6-9 paragraphs, written entirely in your own words, in an engaging narrative style that gives readers a reason to keep scrolling — open with the most compelling angle, build context and stakes through the middle, and close with what happens next or why it matters. Factual and grounded in what the source material actually says — never invent quotes, statistics, transfer fees, or specifics that aren't supported by the source.
-- Naturally repeat the key entities (team names, player names, competition) a few times through the body the way a well-optimized sports article would, without keyword-stuffing.
-- If the source material is thin (just a short snippet), still write a complete, honest article — don't pad it with invented facts; instead lean on context and stakes you can reasonably infer (e.g. league position, rivalry context) without stating anything as fact that isn't given.
-- Respond with strict JSON only, matching this shape: {"title": string, "dek": string, "body": string, "tags": string}
-  - "dek" is a one-sentence subheading that also works as a meta description (under 160 characters).
-  - "body" contains paragraphs separated by a blank line.
-  - "tags" is a comma-separated list of 3-5 specific tags (team names, competition, "Transfers", etc.) useful for search and internal linking.`;
+const SYSTEM_PROMPT = `You are the Onibsport AI Desk — a veteran football chief editor with 15+ years running desks at major sports outlets, and an expert SEO writer. You are given source material about a football story (usually the full text of another outlet's article, sometimes only an alert snippet) and you produce a complete, original, publication-ready Onibsport article. Read the source for facts, then write it fresh in your own words. Never copy the source's sentences.
+
+Headline
+- Punchy and high click-through, but it must accurately reflect the article. No false or overpromising claims.
+- Put the main keyword (club, player or competition) near the start. Aim for 50-70 characters.
+
+Article body
+- A full article, not a summary: roughly 700-1,100 words when the source is substantial; shorter only when the source is thin.
+- Open with the most compelling angle in the first paragraph, then build context, stakes and consequences, and close with what happens next or why it matters.
+- Break it up with 2-4 subheadings that a reader scanning the page (and a search engine) would find useful.
+- Stay strictly factual to the source. Never invent quotes, statistics, fees, dates, injuries or any other specifics. If the source quotes someone, you may quote those exact words with attribution; otherwise paraphrase.
+- If the source is thin, still write an honest, complete piece: lean on context you can reasonably state (competition, rivalry, the stakes of the fixture) without presenting guesses as facts.
+- Use the key entities (club names, player names, competition) naturally several times, the way a well-optimised sports article does, without keyword stuffing.
+
+Links
+- Credit the source once, early in the body, as an inline link to the source URL you are given, e.g. "as [BBC Sport reported](https://...)". Do not link to the source if no URL is given.
+- Add 2-3 internal links, only to URLs from the Onibsport link list you are given, where they genuinely help the reader (the relevant league hub, a related story). Never make up an Onibsport URL.
+
+Formatting — use only this markdown subset, with a blank line between blocks:
+- "## Subheading" for subheadings (no H1; the headline is separate)
+- "> quote" for a pull quote, only for a real quote from the source
+- "- item" lines for a short list, when a list genuinely reads better
+- inline [link text](url) and **bold** for emphasis, sparingly
+Do not use tables, images, HTML, or code blocks.
+
+Also return
+- dek: one sentence under 160 characters that works as the meta description.
+- tags: 4-6 specific tags (club names, players, competition, and a topic such as "Transfers").
+- category: the single best Onibsport hub for the story.
+- imageAlt: alt text describing a likely lead photo for this story, under 125 characters, without "image of".`;
 
 function buildStubDraft(source: SourceItem): GeneratedDraft {
   return {
@@ -31,46 +89,84 @@ function buildStubDraft(source: SourceItem): GeneratedDraft {
       source.rawSummary,
     ].join("\n\n"),
     tags: "AI Desk, Stub",
+    category: (CATEGORY_SLUGS as readonly string[]).includes(source.categorySlug) ? (source.categorySlug as CategorySlug) : "transfers",
+    imageAlt: source.headline,
+    sourceOutlet: source.sourceName,
+    sourceUrl: source.sourceUrl,
     isStub: true,
   };
 }
 
-export async function generateDraft(source: SourceItem): Promise<GeneratedDraft> {
+export async function generateDraft(source: SourceItem, internalLinks: InternalLink[] = []): Promise<GeneratedDraft> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return buildStubDraft(source);
   }
 
-  const fullText = source.sourceUrl ? await fetchSourceArticleText(source.sourceUrl) : null;
-  const sourceMaterial = fullText
-    ? `Full source article text:\n${fullText}`
-    : `Source summary (full article text wasn't available — work from this):\n${source.rawSummary}`;
+  const page = source.sourceUrl ? await fetchSourceArticle(source.sourceUrl) : null;
+  const outlet = page?.outlet ?? source.sourceName;
+  const sourceUrl = page?.url ?? source.sourceUrl;
+  const sourceMaterial = page?.text
+    ? `Full source article text:\n${page.text}`
+    : `Source summary (the full article wasn't available — work from this):\n${source.rawSummary}`;
+
+  const linkList = internalLinks.length
+    ? internalLinks.map((l) => `- ${l.title}: ${l.url}`).join("\n")
+    : "(none available — skip internal links)";
 
   const client = new Anthropic({ apiKey });
-  const message = await client.messages.create({
-    model: "claude-sonnet-5",
-    max_tokens: 2048,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: `Source outlet: ${source.sourceName}\nOriginal headline: ${source.headline}\n\n${sourceMaterial}`,
-      },
-    ],
-  });
-
-  const textBlock = message.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("AI Desk did not return a text response.");
-  }
-
-  let parsed: { title: string; dek: string; body: string; tags: string };
+  let response;
   try {
-    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : textBlock.text);
-  } catch {
-    throw new Error("AI Desk returned a response that could not be parsed as JSON.");
+    response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 16000,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Source outlet: ${outlet}`,
+            `Source URL: ${sourceUrl ?? "(not available)"}`,
+            `Original headline: ${source.headline}`,
+            `Suggested hub (override it if the story clearly belongs elsewhere): ${source.categorySlug}`,
+            "",
+            "Onibsport pages you may link to:",
+            linkList,
+            "",
+            sourceMaterial,
+          ].join("\n"),
+        },
+      ],
+      output_config: { format: zodOutputFormat(DraftSchema) },
+    });
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) throw new Error("AI Desk is rate-limited right now. Try again in a minute.");
+    if (err instanceof Anthropic.AuthenticationError) throw new Error("ANTHROPIC_API_KEY was rejected. Check the key in your environment variables.");
+    if (err instanceof Anthropic.APIError) throw new Error(`AI Desk request failed (${err.status ?? "network"}): ${err.message}`);
+    throw err;
   }
 
-  return { ...parsed, isStub: false };
+  if (response.stop_reason === "refusal") {
+    throw new Error("The AI Desk declined to rewrite this story. Write it by hand or pick another item.");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("The draft ran past the length limit and was cut off. Try drafting it again.");
+  }
+  const draft = response.parsed_output;
+  if (!draft) {
+    throw new Error("AI Desk returned a draft that didn't match the expected format. Try again.");
+  }
+
+  return {
+    title: draft.title.trim(),
+    dek: draft.dek.trim(),
+    body: draft.body.trim(),
+    tags: draft.tags.map((t) => t.trim()).filter(Boolean).join(", "),
+    category: draft.category,
+    imageAlt: draft.imageAlt.trim(),
+    sourceImage: page?.image,
+    sourceOutlet: outlet,
+    sourceUrl,
+    isStub: false,
+  };
 }

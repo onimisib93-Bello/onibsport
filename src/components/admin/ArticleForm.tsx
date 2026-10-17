@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  TextHTwo,
+  TextB,
+  LinkSimple,
+  Quotes,
+  ListBullets,
+  ImageSquare,
+  Warning,
+  UploadSimple,
+} from "@phosphor-icons/react/dist/ssr";
+import { parseBlocks, plainText, readingMinutes, RichText } from "@/lib/richText";
+import NewsImage from "@/components/ui/NewsImage";
+import { cn } from "@/lib/utils";
 
 interface CategoryOption {
   id: string;
@@ -36,15 +49,33 @@ function slugify(value: string) {
     .replace(/-+/g, "-");
 }
 
-export default function ArticleForm({
-  categories,
-  initial,
-}: {
-  categories: CategoryOption[];
-  initial?: ArticleFormValues;
-}) {
+/** True for images hot-linked from another site (e.g. picked up from the source story). */
+function isExternalImage(src: string) {
+  if (!src || src.startsWith("/")) return false;
+  try {
+    return !new URL(src).hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+const input =
+  "mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink transition-colors placeholder:text-muted/70 focus:border-indigo focus:outline-none focus:ring-4 focus:ring-indigo/10";
+const label = "block text-sm font-semibold text-ink";
+
+function Counter({ value, ideal, max }: { value: number; ideal: [number, number]; max: number }) {
+  const tone = value > max ? "text-[#b42318]" : value >= ideal[0] && value <= ideal[1] ? "text-[#1f7a4a]" : "text-muted";
+  return (
+    <span className={cn("text-xs font-semibold tabular-nums", tone)}>
+      {value}/{max}
+    </span>
+  );
+}
+
+export default function ArticleForm({ categories, initial }: { categories: CategoryOption[]; initial?: ArticleFormValues }) {
   const router = useRouter();
   const isEdit = !!initial?.id;
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [values, setValues] = useState<ArticleFormValues>(
     initial ?? {
       title: "",
@@ -67,28 +98,87 @@ export default function ArticleForm({
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState<{ image?: boolean; coverImage?: boolean }>({});
+  const [uploading, setUploading] = useState<{ image?: boolean; coverImage?: boolean; body?: boolean }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<"story" | "search" | "social">("story");
 
   function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
+  async function upload(file: File): Promise<string | null> {
+    setUploadError(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setUploadError(typeof data.error === "string" ? data.error : "Upload failed.");
+      return null;
+    }
+    return data.url as string;
+  }
+
   async function handleFileUpload(field: "image" | "coverImage", file: File) {
     setUploading((u) => ({ ...u, [field]: true }));
-    setUploadError(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setUploadError(typeof data.error === "string" ? data.error : "Upload failed.");
-        return;
-      }
-      update(field, data.url as string);
+      const url = await upload(file);
+      if (url) update(field, url);
     } finally {
       setUploading((u) => ({ ...u, [field]: false }));
+    }
+  }
+
+  /** Wraps the current selection in the body (or inserts a block) and restores the cursor. */
+  function format(kind: "h2" | "bold" | "link" | "quote" | "list") {
+    const el = bodyRef.current;
+    if (!el) return;
+    const { selectionStart: start, selectionEnd: end, value } = el;
+    const selected = value.slice(start, end);
+    let insert = "";
+    let cursorFrom = 0;
+    let cursorTo = 0;
+    const block = (text: string) => {
+      const before = start > 0 && !value.slice(0, start).endsWith("\n\n") ? (value.slice(0, start).endsWith("\n") ? "\n" : "\n\n") : "";
+      return `${before}${text}\n\n`;
+    };
+    if (kind === "bold") {
+      insert = `**${selected || "bold text"}**`;
+      cursorFrom = start + 2;
+      cursorTo = cursorFrom + (selected || "bold text").length;
+    } else if (kind === "link") {
+      const text = selected || "link text";
+      insert = `[${text}](https://)`;
+      cursorFrom = start + text.length + 3;
+      cursorTo = cursorFrom + 8;
+    } else {
+      const prefix = kind === "h2" ? "## " : kind === "quote" ? "> " : "- ";
+      const text = selected || (kind === "h2" ? "Subheading" : kind === "quote" ? "Quote" : "List item");
+      const content = kind === "list" ? text.split("\n").map((l) => `- ${l}`).join("\n") : `${prefix}${text}`;
+      insert = block(content);
+      const offset = insert.indexOf(content) + (kind === "list" ? 2 : prefix.length);
+      cursorFrom = start + offset;
+      cursorTo = cursorFrom + (kind === "list" ? text.split("\n")[0].length : text.length);
+    }
+    const next = value.slice(0, start) + insert + value.slice(end);
+    update("body", next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(cursorFrom, cursorTo);
+    });
+  }
+
+  async function insertPhoto(file: File) {
+    setUploading((u) => ({ ...u, body: true }));
+    try {
+      const url = await upload(file);
+      if (!url) return;
+      const el = bodyRef.current;
+      const pos = el?.selectionStart ?? values.body.length;
+      const snippet = `\n\n![Describe the photo](${url} "Caption")\n\n`;
+      update("body", values.body.slice(0, pos) + snippet + values.body.slice(pos));
+    } finally {
+      setUploading((u) => ({ ...u, body: false }));
     }
   }
 
@@ -114,233 +204,422 @@ export default function ArticleForm({
     }
   }
 
+  const paragraphs = useMemo(
+    () =>
+      values.body
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter(Boolean),
+    [values.body]
+  );
+  const blocks = useMemo(() => parseBlocks(paragraphs), [paragraphs]);
+  const words = paragraphs.map(plainText).join(" ").split(/\s+/).filter(Boolean).length;
+  const subheads = blocks.filter((b) => b.type === "h2").length;
+  const links = (values.body.match(/\]\((?:https?:\/\/|\/)/g) ?? []).length;
+  const externalImage = isExternalImage(values.image) || isExternalImage(values.coverImage);
+  const categoryName = categories.find((c) => c.id === values.categoryId)?.name ?? "";
+
+  const checks = [
+    { ok: values.title.length >= 30 && values.title.length <= 70, text: "Headline is 30-70 characters" },
+    { ok: values.dek.length >= 70 && values.dek.length <= 160, text: "Standfirst/meta description is 70-160 characters" },
+    { ok: words >= 400, text: `Story is at least 400 words (now ${words})` },
+    { ok: subheads >= 2, text: "Has at least two subheadings" },
+    { ok: links >= 2, text: "Has at least two links" },
+    { ok: values.imageAlt.length >= 10, text: "Lead photo has descriptive alt text" },
+    { ok: values.tags.split(",").filter((t) => t.trim()).length >= 3, text: "Has three or more tags" },
+  ];
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-semibold text-ink">Title</label>
-        <input
-          required
-          value={values.title}
-          onChange={(e) => {
-            update("title", e.target.value);
-            if (!slugTouched) update("slug", slugify(e.target.value));
-          }}
-          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="space-y-6">
+        {externalImage && (
+          <div className="flex gap-3 rounded-2xl border border-orange/40 bg-orange/10 p-4 text-sm text-ink">
+            <Warning size={22} weight="fill" className="shrink-0 text-orange-deep" aria-hidden="true" />
+            <p>
+              <span className="font-bold">Check the photo rights before publishing.</span> The lead or cover photo is loaded from another website (usually the
+              source story). Upload a photo you own or have licensed, or confirm you have permission to use this one.
+            </p>
+          </div>
+        )}
 
-      <div>
-        <label className="block text-sm font-semibold text-ink">Slug</label>
-        <input
-          required
-          value={values.slug}
-          onChange={(e) => {
-            setSlugTouched(true);
-            update("slug", slugify(e.target.value));
-          }}
-          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm font-mono focus:border-indigo focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-ink">Dek (subheading)</label>
-        <textarea
-          required
-          rows={2}
-          value={values.dek}
-          onChange={(e) => update("dek", e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-ink">Body</label>
-        <p className="mt-0.5 text-xs text-muted">Separate paragraphs with a blank line.</p>
-        <textarea
-          required
-          rows={10}
-          value={values.body}
-          onChange={(e) => update("body", e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm leading-relaxed focus:border-indigo focus:outline-none"
-        />
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-semibold text-ink">Category</label>
-          <select
-            required
-            value={values.categoryId}
-            onChange={(e) => update("categoryId", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink">Status</label>
-          <select
-            value={values.status}
-            onChange={(e) => update("status", e.target.value as ArticleFormValues["status"])}
-            className="mt-1.5 w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          >
-            <option value="DRAFT">Draft</option>
-            <option value="PENDING_REVIEW">Pending review</option>
-            <option value="PUBLISHED">Published</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-semibold text-ink">Author</label>
-          <input
-            required
-            value={values.author}
-            onChange={(e) => update("author", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink">Source (optional, for AI-assisted drafts)</label>
-          <input
-            value={values.source}
-            onChange={(e) => update("source", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-semibold text-ink">Feature image</label>
-          <input
-            required
-            value={values.image}
-            onChange={(e) => update("image", e.target.value)}
-            placeholder="/placeholders/pl-title-race.jpg or https://…"
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm font-mono focus:border-indigo focus:outline-none"
-          />
-          <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-indigo hover:text-indigo-dark">
-            {uploading.image ? "Uploading…" : "Upload a file instead"}
+        <section className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line sm:p-6">
+          <div>
+            <div className="flex items-end justify-between gap-3">
+              <label htmlFor="f-title" className={label}>
+                Headline
+              </label>
+              <Counter value={values.title.length} ideal={[30, 70]} max={70} />
+            </div>
             <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={uploading.image}
+              id="f-title"
+              required
+              value={values.title}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFileUpload("image", file);
-                e.target.value = "";
+                update("title", e.target.value);
+                if (!slugTouched) update("slug", slugify(e.target.value));
               }}
+              className={cn(input, "font-display text-2xl font-extrabold")}
             />
-          </label>
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink">Image alt text</label>
-          <input
-            required
-            value={values.imageAlt}
-            onChange={(e) => update("imageAlt", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          />
-        </div>
+          </div>
+
+          <div>
+            <label htmlFor="f-slug" className={label}>
+              Web address
+            </label>
+            <div className="mt-1.5 flex items-center rounded-xl border border-line bg-paper focus-within:border-indigo focus-within:ring-4 focus-within:ring-indigo/10">
+              <span className="pl-3.5 text-sm text-muted">/article/</span>
+              <input
+                id="f-slug"
+                required
+                value={values.slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  update("slug", slugify(e.target.value));
+                }}
+                className="min-w-0 flex-1 bg-transparent px-1 py-2.5 font-mono text-sm text-ink focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-end justify-between gap-3">
+              <label htmlFor="f-dek" className={label}>
+                Standfirst
+              </label>
+              <Counter value={values.dek.length} ideal={[70, 160]} max={160} />
+            </div>
+            <p id="f-dek-help" className="mt-0.5 text-xs text-muted">
+              One sentence under the headline. It&apos;s also the description Google and social networks show.
+            </p>
+            <textarea id="f-dek" aria-describedby="f-dek-help" required rows={2} value={values.dek} onChange={(e) => update("dek", e.target.value)} className={input} />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <label htmlFor="f-body" className={label}>
+                Story
+              </label>
+              <span className="text-xs text-muted">
+                {words} words, about {readingMinutes(paragraphs)} min read
+              </span>
+            </div>
+            <div className="mt-1.5 overflow-hidden rounded-xl border border-line focus-within:border-indigo focus-within:ring-4 focus-within:ring-indigo/10">
+              <div role="toolbar" aria-label="Formatting" className="flex flex-wrap items-center gap-1 border-b border-line bg-paper px-2 py-1.5">
+                {[
+                  { kind: "h2" as const, Icon: TextHTwo, label: "Subheading" },
+                  { kind: "bold" as const, Icon: TextB, label: "Bold" },
+                  { kind: "link" as const, Icon: LinkSimple, label: "Link" },
+                  { kind: "quote" as const, Icon: Quotes, label: "Pull quote" },
+                  { kind: "list" as const, Icon: ListBullets, label: "List" },
+                ].map(({ kind, Icon, label: l }) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => format(kind)}
+                    title={l}
+                    aria-label={l}
+                    className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-ink/70 hover:bg-white hover:text-ink"
+                  >
+                    <Icon size={18} weight="bold" />
+                  </button>
+                ))}
+                <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-ink/70 hover:bg-white hover:text-ink">
+                  <ImageSquare size={18} weight="bold" aria-hidden="true" />
+                  {uploading.body ? "Uploading…" : "Photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={uploading.body}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void insertPhoto(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              <textarea
+                id="f-body"
+                ref={bodyRef}
+                required
+                rows={20}
+                value={values.body}
+                onChange={(e) => update("body", e.target.value)}
+                aria-describedby="f-body-help"
+                className="block w-full resize-y bg-white px-4 py-3 font-mono text-[14px] leading-relaxed text-ink focus:outline-none"
+              />
+            </div>
+            <p id="f-body-help" className="mt-1.5 text-xs text-muted">
+              Leave a blank line between paragraphs. Use the toolbar for subheadings, links, quotes, lists and photos.
+            </p>
+          </div>
+        </section>
+
+        <section className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line sm:p-6">
+          <h2 className="font-display text-2xl font-black text-ink">Photos</h2>
+          <div className="grid gap-5 sm:grid-cols-[160px_minmax(0,1fr)]">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-line">
+              {values.image && <NewsImage src={values.image} alt="" fill sizes="160px" className="object-cover" />}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="f-image" className={label}>
+                  Lead photo
+                </label>
+                <input
+                  id="f-image"
+                  required
+                  value={values.image}
+                  onChange={(e) => update("image", e.target.value)}
+                  placeholder="/placeholders/pl-title-race.jpg or https://…"
+                  className={cn(input, "font-mono text-sm")}
+                />
+                <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-indigo hover:text-indigo-dark">
+                  <UploadSimple size={16} weight="bold" aria-hidden="true" />
+                  {uploading.image ? "Uploading…" : "Upload a photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={uploading.image}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload("image", file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              <div>
+                <label htmlFor="f-alt" className={label}>
+                  Photo description (alt text)
+                </label>
+                <input id="f-alt" required value={values.imageAlt} onChange={(e) => update("imageAlt", e.target.value)} className={input} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="f-cover" className={label}>
+              Share image (1200×630)
+            </label>
+            <p className="mt-0.5 text-xs text-muted">Shown when the story is shared and in search results. Leave blank to use the lead photo.</p>
+            <input
+              id="f-cover"
+              value={values.coverImage}
+              onChange={(e) => update("coverImage", e.target.value)}
+              placeholder={values.image}
+              className={cn(input, "font-mono text-sm")}
+            />
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-indigo hover:text-indigo-dark">
+              <UploadSimple size={16} weight="bold" aria-hidden="true" />
+              {uploading.coverImage ? "Uploading…" : "Upload a share image"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={uploading.coverImage}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleFileUpload("coverImage", file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {uploadError && (
+              <p role="alert" className="mt-2 text-sm font-semibold text-[#b42318]">
+                {uploadError}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="f-video" className={label}>
+              Video embed URL (optional)
+            </label>
+            <input
+              id="f-video"
+              value={values.featuredVideoUrl}
+              onChange={(e) => update("featuredVideoUrl", e.target.value)}
+              placeholder="https://www.youtube.com/embed/…"
+              className={input}
+            />
+          </div>
+        </section>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-ink">Cover image (social share / SEO, 1200×630)</label>
-        <p className="mt-0.5 text-xs text-muted">Shown when the article is shared on social media and in search results. Defaults to the image above if left blank.</p>
-        <input
-          value={values.coverImage}
-          onChange={(e) => update("coverImage", e.target.value)}
-          placeholder={values.image}
-          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm font-mono focus:border-indigo focus:outline-none"
-        />
-        <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-indigo hover:text-indigo-dark">
-          {uploading.coverImage ? "Uploading…" : "Upload a file instead"}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={uploading.coverImage}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleFileUpload("coverImage", file);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        {uploadError && <p className="mt-1.5 text-xs font-semibold text-red-600">{uploadError}</p>}
-      </div>
+      <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+        <section className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <div>
+              <label htmlFor="f-status" className={label}>
+                Status
+              </label>
+              <select
+                id="f-status"
+                value={values.status}
+                onChange={(e) => update("status", e.target.value as ArticleFormValues["status"])}
+                className={input}
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="PENDING_REVIEW">Pending review</option>
+                <option value="PUBLISHED">Published</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="f-category" className={label}>
+                League hub
+              </label>
+              <select id="f-category" required value={values.categoryId} onChange={(e) => update("categoryId", e.target.value)} className={input}>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="f-author" className={label}>
+                Author
+              </label>
+              <input id="f-author" required value={values.author} onChange={(e) => update("author", e.target.value)} className={input} />
+            </div>
+            <div>
+              <label htmlFor="f-source" className={label}>
+                Source outlet
+              </label>
+              <input id="f-source" value={values.source} onChange={(e) => update("source", e.target.value)} placeholder="e.g. BBC Sport" className={input} />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="f-tags" className={label}>
+              Tags
+            </label>
+            <input id="f-tags" value={values.tags} onChange={(e) => update("tags", e.target.value)} placeholder="Arsenal, Premier League, Title race" className={input} />
+            <p className="mt-1 text-xs text-muted">Separate with commas. Tags power search and related stories.</p>
+          </div>
+          <fieldset className="space-y-2.5">
+            <legend className="sr-only">Placement</legend>
+            {[
+              { key: "isBreaking" as const, title: "Breaking news", help: "Shows the Breaking label and the site-wide alert." },
+              { key: "featured" as const, title: "Feature on the homepage", help: "Puts it in the hero slideshow and Editor's picks. It stays on its hub too." },
+            ].map((o) => (
+              <label key={o.key} className="flex cursor-pointer gap-3 rounded-xl p-2 hover:bg-paper">
+                <input
+                  type="checkbox"
+                  checked={values[o.key]}
+                  onChange={(e) => update(o.key, e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[#2d1b69]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-ink">{o.title}</span>
+                  <span className="block text-xs text-muted">{o.help}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-semibold text-ink">Tags (comma-separated)</label>
-          <input
-            value={values.tags}
-            onChange={(e) => update("tags", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-ink">Featured video URL (optional)</label>
-          <input
-            value={values.featuredVideoUrl}
-            onChange={(e) => update("featuredVideoUrl", e.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:border-indigo focus:outline-none"
-          />
-        </div>
-      </div>
+          {error && (
+            <p role="alert" className="rounded-xl bg-[#fde8e8] p-3 text-sm font-semibold text-[#b42318]">
+              {error}
+            </p>
+          )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-        <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <input
-            type="checkbox"
-            checked={values.isBreaking}
-            onChange={(e) => update("isBreaking", e.target.checked)}
-            className="h-4 w-4 rounded border-line text-indigo focus:ring-indigo"
-          />
-          Mark as breaking news
-        </label>
-        <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <input
-            type="checkbox"
-            checked={values.featured}
-            onChange={(e) => update("featured", e.target.checked)}
-            className="h-4 w-4 rounded border-line text-indigo focus:ring-indigo"
-          />
-          Feature on homepage
-        </label>
-      </div>
-      <p className="-mt-3 text-xs text-muted">
-        Featuring a story pins it to the homepage hero/Editor&apos;s Picks — it still stays listed on its category page too.
-      </p>
+          <div className="flex items-center gap-3 border-t border-line pt-5">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 cursor-pointer rounded-full bg-night px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving…" : isEdit ? "Save changes" : "Create article"}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/admin/articles")}
+              className="cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-muted hover:bg-paper hover:text-ink"
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
 
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-red-600">
-          {error}
-        </p>
-      )}
+        <section className="rounded-2xl bg-white p-5 ring-1 ring-line">
+          <h2 className="font-display text-2xl font-black text-ink">Search-ready checklist</h2>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {checks.map((c) => (
+              <li key={c.text} className="flex items-start gap-2">
+                <span
+                  aria-hidden="true"
+                  className={cn("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-black", c.ok ? "bg-[#1f9d5c] text-white" : "bg-line text-muted")}
+                >
+                  {c.ok ? "✓" : ""}
+                </span>
+                <span className={c.ok ? "text-ink" : "text-muted"}>
+                  <span className="sr-only">{c.ok ? "Done: " : "To do: "}</span>
+                  {c.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <div className="flex items-center gap-3 border-t border-line pt-5">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-full bg-indigo px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-dark disabled:opacity-60"
-        >
-          {saving ? "Saving…" : isEdit ? "Save changes" : "Create article"}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/admin/articles")}
-          className="rounded-full px-6 py-2.5 text-sm font-semibold text-muted hover:bg-line"
-        >
-          Cancel
-        </button>
+        <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+          <div role="tablist" aria-label="Preview" className="flex border-b border-line">
+            {(
+              [
+                ["story", "Story"],
+                ["search", "Google"],
+                ["social", "Social card"],
+              ] as const
+            ).map(([id, l]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={preview === id}
+                onClick={() => setPreview(id)}
+                className={cn(
+                  "flex-1 cursor-pointer border-b-2 py-3 text-sm font-bold transition-colors",
+                  preview === id ? "border-indigo text-ink" : "border-transparent text-muted hover:text-ink"
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="max-h-[70vh] overflow-y-auto p-5">
+            {preview === "story" && (
+              <article>
+                <p className="text-xs font-bold text-muted">{categoryName}</p>
+                <h3 className="mt-1 font-display text-3xl font-black leading-[0.95] text-ink">{values.title || "Your headline"}</h3>
+                <p className="mt-2 text-[15px] text-ink/70">{values.dek || "Your standfirst."}</p>
+                <div className="story mt-4 text-base [&_h2]:text-2xl">
+                  {blocks.length > 0 ? <RichText blocks={blocks} /> : <p className="text-muted">Start writing to see the story here.</p>}
+                </div>
+              </article>
+            )}
+            {preview === "search" && (
+              <div className="font-[arial,sans-serif]">
+                <p className="text-xs text-[#4d5156]">onibsport.com › article › {values.slug || "your-story"}</p>
+                <p className="mt-1 line-clamp-1 text-xl leading-snug text-[#1a0dab]">{(values.title || "Your headline") + " | Onibsport"}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-[#4d5156]">{values.dek || "Your standfirst appears here as the description."}</p>
+              </div>
+            )}
+            {preview === "social" && (
+              <div className="overflow-hidden rounded-xl ring-1 ring-line">
+                <div className="relative aspect-[1200/630] bg-line">
+                  {(values.coverImage || values.image) && <NewsImage src={values.coverImage || values.image} alt="" fill sizes="440px" className="object-cover" />}
+                </div>
+                <div className="bg-paper p-3">
+                  <p className="text-xs uppercase text-muted">onibsport.com</p>
+                  <p className="mt-0.5 line-clamp-2 font-semibold text-ink">{values.title || "Your headline"}</p>
+                  <p className="mt-0.5 line-clamp-1 text-sm text-muted">{values.dek}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </form>
   );

@@ -1,38 +1,75 @@
+import Link from "next/link";
 import { Fixture } from "@/lib/types";
+import { formatKickoff, formatDay } from "@/lib/time";
+import { getCategory } from "@/lib/data/categories";
+import Crest from "@/components/ui/Crest";
+import LeagueCrest from "@/components/ui/LeagueCrest";
+import LiveDot from "@/components/ui/LiveDot";
+import { cn } from "@/lib/utils";
 
-function formatKickoff(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boolean }) {
+  if (fixture.status === "live") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs font-bold text-orange-deep">
+        <LiveDot />
+        <span className="tabular-nums">{fixture.minute != null ? `${fixture.minute}'` : "Live"}</span>
+      </span>
+    );
+  }
+  if (fixture.status === "finished") {
+    return <span className="text-xs font-semibold text-muted">{showDate ? formatDay(fixture.kickoff, { day: "numeric", month: "short" }) : "FT"}</span>;
+  }
+  return (
+    <span className="flex flex-col text-xs font-semibold leading-tight text-muted">
+      {showDate && <span>{formatDay(fixture.kickoff, { weekday: "short", day: "numeric" })}</span>}
+      <span className="tabular-nums text-ink">{formatKickoff(fixture.kickoff)}</span>
+    </span>
+  );
 }
 
-export default function MatchCard({ fixture }: { fixture: Fixture }) {
+function TeamLine({ name, crest, score, winner, dim }: { name: string; crest?: string; score: number | null; winner: boolean; dim: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-line bg-white px-4 py-3">
-      <div className="w-14 shrink-0">
-        {fixture.status === "live" && (
-          <span className="flex items-center gap-1.5 text-xs font-bold text-orange">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-orange" />
-            </span>
-            {fixture.minute}&apos;
-          </span>
-        )}
-        {fixture.status === "finished" && <span className="text-xs font-semibold text-muted">FT</span>}
-        {fixture.status === "upcoming" && (
-          <span className="text-xs font-semibold text-muted">{formatKickoff(fixture.kickoff)}</span>
-        )}
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <span className={cn("flex min-w-0 items-center gap-2.5 text-[15px]", winner ? "font-bold text-ink" : "font-medium text-ink/85", dim && "text-ink/55")}>
+        <Crest name={name} src={crest} size={22} />
+        <span className="truncate">{name}</span>
+      </span>
+      <span className={cn("font-display text-2xl leading-none tabular-nums", winner ? "font-black text-ink" : "font-bold text-ink/70")}>
+        {score ?? ""}
+      </span>
+    </div>
+  );
+}
 
-      <div className="flex-1 space-y-1.5">
-        <div className="flex items-center justify-between gap-3">
-          <span className="truncate text-sm font-semibold text-ink">{fixture.home}</span>
-          <span className="tabular-nums text-sm font-bold text-ink">{fixture.homeScore ?? "–"}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="truncate text-sm font-semibold text-ink">{fixture.away}</span>
-          <span className="tabular-nums text-sm font-bold text-ink">{fixture.awayScore ?? "–"}</span>
-        </div>
+/**
+ * Scoreboard row for one match. `showDate` adds the day for lists that span
+ * several dates; `showLeague` adds the competition for mixed lists.
+ */
+export default function MatchCard({ fixture, showDate, showLeague }: { fixture: Fixture; showDate?: boolean; showLeague?: boolean }) {
+  const finished = fixture.status === "finished";
+  const hs = fixture.homeScore ?? -1;
+  const as = fixture.awayScore ?? -1;
+  const league = showLeague ? getCategory(fixture.league) : undefined;
+
+  return (
+    <div
+      className={cn(
+        "relative flex items-center gap-4 rounded-xl border bg-white px-4 py-3 transition-colors",
+        fixture.status === "live" ? "border-orange/50 shadow-[0_0_0_3px_rgb(247_148_29/0.12)]" : "border-line"
+      )}
+    >
+      <div className="w-12 shrink-0">
+        <StatusLabel fixture={fixture} showDate={showDate} />
       </div>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <TeamLine name={fixture.home} crest={fixture.homeCrest} score={fixture.homeScore} winner={finished && hs > as} dim={finished && hs < as} />
+        <TeamLine name={fixture.away} crest={fixture.awayCrest} score={fixture.awayScore} winner={finished && as > hs} dim={finished && as < hs} />
+      </div>
+      {league && (
+        <Link href={`/category/${league.slug}`} aria-label={league.name} className="shrink-0 rounded-md">
+          <LeagueCrest slug={league.slug} size={26} />
+        </Link>
+      )}
     </div>
   );
 }

@@ -21,6 +21,21 @@ const COMPETITION_CODES: Partial<Record<CategorySlug, string>> = {
   "champions-league": "CL",
 };
 
+const SLUG_BY_CODE = Object.fromEntries(
+  Object.entries(COMPETITION_CODES).map(([slug, code]) => [code, slug as CategorySlug])
+) as Record<string, CategorySlug>;
+
+/** Leagues that have results/fixtures at all (live API or placeholder data). */
+export const SCORE_LEAGUES: CategorySlug[] = [
+  "premier-league",
+  "la-liga",
+  "serie-a",
+  "bundesliga",
+  "champions-league",
+  "npfl",
+  "nigeria-football",
+];
+
 const STATUS_MAP: Record<string, Fixture["status"]> = {
   SCHEDULED: "upcoming",
   TIMED: "upcoming",
@@ -36,14 +51,17 @@ const STATUS_MAP: Record<string, Fixture["status"]> = {
 interface FootballDataTeam {
   name?: string;
   shortName?: string;
+  crest?: string;
 }
 
 interface FootballDataMatch {
   id: number;
+  competition?: { code?: string };
   homeTeam?: FootballDataTeam;
   awayTeam?: FootballDataTeam;
   score?: { fullTime?: { home: number | null; away: number | null } };
   minute?: number | null;
+  matchday?: number | null;
   status: string;
   utcDate: string;
 }
@@ -56,6 +74,7 @@ interface FootballDataStandingRow {
   lost: number;
   goalsFor: number;
   goalsAgainst: number;
+  form?: string | null;
 }
 
 async function fetchFromFootballData<T>(path: string): Promise<T | null> {
@@ -80,6 +99,35 @@ function isoDate(daysFromNow: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Today's date as YYYY-MM-DD (UTC). */
+export function todayIso(): string {
+  return isoDate(0);
+}
+
+/** Accepts only a real calendar date in YYYY-MM-DD form. */
+export function parseDateParam(value: string | undefined | null): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value ? null : value;
+}
+
+function toFixture(m: FootballDataMatch, slug: CategorySlug): Fixture {
+  return {
+    id: String(m.id),
+    league: slug,
+    home: m.homeTeam?.shortName ?? m.homeTeam?.name ?? "TBD",
+    away: m.awayTeam?.shortName ?? m.awayTeam?.name ?? "TBD",
+    homeCrest: m.homeTeam?.crest,
+    awayCrest: m.awayTeam?.crest,
+    homeScore: m.score?.fullTime?.home ?? null,
+    awayScore: m.score?.fullTime?.away ?? null,
+    minute: m.minute ?? null,
+    matchday: m.matchday ?? undefined,
+    status: STATUS_MAP[m.status] ?? "upcoming",
+    kickoff: m.utcDate,
+  };
+}
+
 /**
  * football-data.org returns the WHOLE season (~380 matches) if you don't
  * bound it — so every call here is scoped to a rolling window of recent
@@ -97,17 +145,37 @@ export async function getFixturesForLeague(slug: CategorySlug): Promise<Fixture[
   );
   if (!data?.matches) return fallback;
 
-  return data.matches.map((m) => ({
-    id: String(m.id),
-    league: slug,
-    home: m.homeTeam?.shortName ?? m.homeTeam?.name ?? "TBD",
-    away: m.awayTeam?.shortName ?? m.awayTeam?.name ?? "TBD",
-    homeScore: m.score?.fullTime?.home ?? null,
-    awayScore: m.score?.fullTime?.away ?? null,
-    minute: m.minute ?? null,
-    status: STATUS_MAP[m.status] ?? "upcoming",
-    kickoff: m.utcDate,
-  }));
+  return data.matches.map((m) => toFixture(m, slug));
+}
+
+/**
+ * Every match on one calendar day (YYYY-MM-DD, UTC) across all covered
+ * leagues — one API request for the five football-data.org competitions,
+ * plus the placeholder NPFL/Nigeria fixtures for that day.
+ */
+export async function getFixturesForDate(date: string): Promise<Fixture[]> {
+  return getFixturesForRange(date, date);
+}
+
+/** Every match between two dates inclusive (YYYY-MM-DD, UTC; at most 10 days apart). */
+export async function getFixturesForRange(dateFrom: string, dateTo: string): Promise<Fixture[]> {
+  const inRange = (iso: string) => iso.slice(0, 10) >= dateFrom && iso.slice(0, 10) <= dateTo;
+  const codes = Object.values(COMPETITION_CODES).join(",");
+  // The /matches endpoint treats dateTo as exclusive, so ask for one more day and trim.
+  const end = new Date(`${dateTo}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const data = await fetchFromFootballData<{ matches: FootballDataMatch[] }>(
+    `/matches?competitions=${codes}&dateFrom=${dateFrom}&dateTo=${end.toISOString().slice(0, 10)}`
+  );
+
+  const live: Fixture[] = data?.matches
+    ? data.matches
+        .filter((m) => inRange(m.utcDate) && m.competition?.code && SLUG_BY_CODE[m.competition.code])
+        .map((m) => toFixture(m, SLUG_BY_CODE[m.competition!.code!]))
+    : mockFixtures.filter((f) => COMPETITION_CODES[f.league] && inRange(f.kickoff));
+
+  const local = mockFixtures.filter((f) => !COMPETITION_CODES[f.league] && inRange(f.kickoff));
+  return [...live, ...local].sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
 }
 
 export async function getAllLiveFixtures(): Promise<Fixture[]> {
@@ -117,6 +185,26 @@ export async function getAllLiveFixtures(): Promise<Fixture[]> {
 
   const mockLive = mockFixtures.filter((f) => f.status === "live" && !COMPETITION_CODES[f.league]);
   return [...live, ...mockLive];
+}
+
+/**
+ * What the scoreboard ticker shows: live matches first, then today's
+ * remaining kick-offs and the most recent results, so it is never empty on
+ * a quiet day.
+ */
+export async function getTickerFixtures(limit = 14): Promise<Fixture[]> {
+  const pool = await getFixturesForRange(isoDate(-4), isoDate(4));
+  const now = Date.now();
+  const live = pool.filter((f) => f.status === "live");
+  const upcoming = pool.filter((f) => f.status === "upcoming" && +new Date(f.kickoff) >= now - 3 * 3600_000);
+  const results = pool.filter((f) => f.status === "finished").reverse();
+  // Live first, then alternate the next kick-offs with the latest results.
+  const mixed: Fixture[] = [...live];
+  for (let i = 0; mixed.length < limit && (i < upcoming.length || i < results.length); i++) {
+    if (results[i]) mixed.push(results[i]);
+    if (upcoming[i]) mixed.push(upcoming[i]);
+  }
+  return mixed.slice(0, limit);
 }
 
 export async function getStandingsForLeague(slug: CategorySlug): Promise<StandingRow[] | undefined> {
@@ -132,11 +220,13 @@ export async function getStandingsForLeague(slug: CategorySlug): Promise<Standin
 
   return table.map((row) => ({
     team: row.team?.shortName ?? row.team?.name ?? "Unknown",
+    crest: row.team?.crest,
     played: row.playedGames,
     won: row.won,
     drawn: row.draw,
     lost: row.lost,
     goalsFor: row.goalsFor,
     goalsAgainst: row.goalsAgainst,
+    form: row.form ?? undefined,
   }));
 }

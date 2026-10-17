@@ -3,92 +3,142 @@ import ArticleCard from "@/components/ArticleCard";
 import SectionHeading from "@/components/SectionHeading";
 import TrendingSidebar from "@/components/TrendingSidebar";
 import NigeriaRail from "@/components/NigeriaRail";
-import FeaturedVideo from "@/components/FeaturedVideo";
 import TransferTicker from "@/components/TransferTicker";
 import YouTubeSection from "@/components/YouTubeSection";
 import AdSlot from "@/components/AdSlot";
-import Reveal from "@/components/motion/Reveal";
+import ScoresStrip from "@/components/home/ScoresStrip";
+import LeagueDesk, { type DeskData } from "@/components/home/LeagueDesk";
+import LeagueHubs from "@/components/home/LeagueHubs";
+import EditorsPicks from "@/components/home/EditorsPicks";
+import WeekInPictures from "@/components/home/WeekInPictures";
 import {
   getLatestArticles,
   getFeaturedArticles,
   getArticlesByCategory,
   getFeaturedVideoArticle,
 } from "@/lib/data/db-articles";
+import {
+  getFixturesForDate,
+  getFixturesForLeague,
+  getStandingsForLeague,
+  getTickerFixtures,
+  todayIso,
+} from "@/lib/live/footballData";
 import { videos } from "@/lib/data/videos";
+import { CategorySlug } from "@/lib/types";
 
 export const revalidate = 60;
 
+const DESK_LEAGUES: CategorySlug[] = ["premier-league", "la-liga", "serie-a", "bundesliga", "champions-league", "npfl"];
+
 export default async function Home() {
-  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle] = await Promise.all([
-    getLatestArticles(12),
-    getFeaturedArticles(6),
-    getArticlesByCategory("nigeria-football", 3),
-    getArticlesByCategory("npfl", 3),
-    getArticlesByCategory("transfers"),
-    getFeaturedVideoArticle(),
-  ]);
+  const today = todayIso();
+  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle, todays, ticker, naijaFixtures, npflFixtures, deskArticles, deskTables] =
+    await Promise.all([
+      getLatestArticles(30),
+      getFeaturedArticles(10),
+      getArticlesByCategory("nigeria-football", 6),
+      getArticlesByCategory("npfl", 6),
+      getArticlesByCategory("transfers", 10),
+      getFeaturedVideoArticle(),
+      getFixturesForDate(today),
+      getTickerFixtures(16),
+      getFixturesForLeague("nigeria-football"),
+      getFixturesForLeague("npfl"),
+      Promise.all(DESK_LEAGUES.map((slug) => getArticlesByCategory(slug, 5))),
+      Promise.all(DESK_LEAGUES.map((slug) => getStandingsForLeague(slug))),
+    ]);
 
   // Articles marked "Feature on homepage" in the admin get priority for the hero
-  // and Editor's Picks rails, while staying listed under their own category too.
-  const heroPool = featured.length > 0 ? featured : latest;
-  const heroSlides = [...heroPool].sort((a, b) => Number(!!b.isBreaking) - Number(!!a.isBreaking)).slice(0, 4);
+  // and Editor's Picks, while staying listed under their own category too.
+  // Featured stories lead (breaking first); the latest stories fill any remaining slots.
+  const featuredSlugs = new Set(featured.map((a) => a.slug));
+  const heroPool = [...[...featured].sort((a, b) => Number(!!b.isBreaking) - Number(!!a.isBreaking)), ...latest.filter((a) => !featuredSlugs.has(a.slug))];
+  const heroSlides = heroPool.slice(0, 4);
   const heroSlugs = new Set(heroSlides.map((a) => a.slug));
-  const gridArticles = latest.filter((a) => !heroSlugs.has(a.slug)).slice(0, 6);
-  const trending = latest.slice(0, 5);
-  const nigeriaArticles = [...nigeriaFootball, ...npfl].slice(0, 3);
-  const editorsPicks = (featured.length > 0 ? featured : latest)
-    .filter((a) => !heroSlugs.has(a.slug))
-    .slice(0, 3);
+  const river = latest.filter((a) => !heroSlugs.has(a.slug));
+  const [riverLead, ...riverRest] = river;
+  const trending = latest.slice(0, 6);
+  const editorsPicks = heroPool.filter((a) => !heroSlugs.has(a.slug)).slice(0, 8);
+  const moreStories = river.slice(7, 15);
+
+  // Today's matches; on a quiet day, pad with the ticker's recent results and upcoming kick-offs.
+  const seen = new Set(todays.map((f) => f.id));
+  const stripFixtures = todays.length >= 6 ? todays : [...todays, ...ticker.filter((f) => !seen.has(f.id))].slice(0, 14);
+
+  const nigeriaArticles = [...nigeriaFootball, ...npfl].sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt)).slice(0, 5);
+  const naijaUpcoming = [...naijaFixtures, ...npflFixtures]
+    .filter((f) => f.status !== "finished")
+    .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
+
+  const desks: DeskData[] = DESK_LEAGUES.map((slug, i) => ({ slug, articles: deskArticles[i], standings: deskTables[i] })).filter(
+    (d) => d.articles.length > 0 || (d.standings?.length ?? 0) > 0
+  );
 
   return (
     <>
-      <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
-        <HeroCarousel articles={heroSlides} />
-      </section>
+      <h1 className="sr-only">Onibsport — football news, transfers and live scores</h1>
 
-      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+      {heroSlides.length > 0 && (
+        <div className="mx-auto max-w-[1400px] px-4 pb-10 pt-5 sm:px-6">
+          <HeroCarousel articles={heroSlides} />
+        </div>
+      )}
+
+      <ScoresStrip fixtures={stripFixtures} dateLabelIso={`${today}T12:00:00Z`} quietDay={todays.length === 0} />
+
+      <div className="mx-auto max-w-[1400px] px-4 pt-10 sm:px-6">
         <AdSlot variant="leaderboard" />
       </div>
 
-      <TransferTicker articles={transferArticles} />
-
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <SectionHeading title="Latest News" href="/category/premier-league" />
-        <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_320px]">
-          <Reveal stagger className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-            {gridArticles.map((article) => (
-              <ArticleCard key={article.slug} article={article} />
-            ))}
-          </Reveal>
-          <div className="space-y-6">
-            <TrendingSidebar articles={trending} />
-            <AdSlot variant="sidebar" />
+      {river.length > 0 && (
+        <section aria-labelledby="latest-title" className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6">
+          <SectionHeading id="latest-title" title="Latest" href="/search" linkLabel="Search the archive" />
+          <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div>
+              {riverLead && <ArticleCard article={riverLead} size="large" />}
+              <div className="mt-10 divide-y divide-line border-t border-line">
+                {riverRest.slice(0, 6).map((article) => (
+                  <div key={article.slug} className="py-6">
+                    <ArticleCard article={article} size="row" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-6 lg:sticky lg:top-36 lg:self-start">
+              <TrendingSidebar articles={trending} />
+              <AdSlot variant="sidebar" />
+            </div>
           </div>
-        </div>
-      </section>
-
-      <NigeriaRail articles={nigeriaArticles} />
-
-      {videoArticle && (
-        <Reveal>
-          <FeaturedVideo article={videoArticle} />
-        </Reveal>
-      )}
-
-      {editorsPicks.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <SectionHeading title="Editor's Picks" accent="gold" />
-          <Reveal stagger className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {editorsPicks.map((article) => (
-              <ArticleCard key={article.slug} article={article} />
-            ))}
-          </Reveal>
         </section>
       )}
 
-      <YouTubeSection videos={videos} />
+      <TransferTicker articles={transferArticles} />
 
-      <div className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
+      {desks.length > 0 && <LeagueDesk desks={desks} />}
+
+      <LeagueHubs />
+
+      <EditorsPicks articles={editorsPicks} />
+
+      <NigeriaRail articles={nigeriaArticles} npflTable={deskTables[DESK_LEAGUES.indexOf("npfl")]} upcoming={naijaUpcoming} />
+
+      <YouTubeSection videos={videos} featured={videoArticle} />
+
+      <WeekInPictures articles={latest} />
+
+      {moreStories.length > 0 && (
+        <section aria-labelledby="more-title" className="mx-auto max-w-[1400px] px-4 py-14 sm:px-6">
+          <SectionHeading id="more-title" title="More stories" />
+          <div className="mt-8 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+            {moreStories.map((article) => (
+              <ArticleCard key={article.slug} article={article} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="mx-auto max-w-[1400px] px-4 pb-6 sm:px-6">
         <AdSlot variant="leaderboard" />
       </div>
     </>
