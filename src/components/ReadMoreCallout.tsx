@@ -1,24 +1,20 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "@/lib/types";
+import { getCategory } from "@/lib/data/categories";
+import NewsImage from "@/components/ui/NewsImage";
 
 export default function ReadMoreCallout({ article }: { article: Article }) {
   return (
-    <Link
-      href={`/article/${article.slug}`}
-      className="group not-prose my-8 flex items-center gap-4 rounded-xl border border-line bg-paper p-4 transition-colors hover:border-indigo"
-    >
-      <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-line sm:h-20 sm:w-28">
-        <Image src={article.image} alt={article.imageAlt} fill sizes="112px" className="object-cover" />
-      </div>
-      <div className="min-w-0">
-        <p className="flex items-center gap-1 text-xs font-semibold text-indigo">
-          Read more about
-          <ArrowUpRight size={13} weight="bold" />
-        </p>
-        <h4 className="mt-0.5 line-clamp-2 font-semibold text-ink group-hover:text-indigo">{article.title}</h4>
-      </div>
-    </Link>
+    <aside className="not-prose my-10">
+      <Link href={`/article/${article.slug}`} className="group flex items-center gap-4 rounded-2xl bg-night p-3 pr-5 text-white no-underline transition-transform hover:-translate-y-0.5">
+        <span className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-night-2">
+          <NewsImage src={article.image} alt="" fill sizes="112px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs font-bold text-orange">Also on {getCategory(article.category)?.name ?? "Onibsport"}</span>
+          <span className="mt-1 line-clamp-2 block font-display text-xl font-extrabold leading-[1.05]">{article.title}</span>
+        </span>
+      </Link>
+    </aside>
   );
 }

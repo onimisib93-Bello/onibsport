@@ -6,8 +6,8 @@ export default async function NewArticlePage() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl tracking-wide text-ink">New Article</h1>
-      <div className="mt-6 max-w-2xl">
+      <h1 className="font-display text-5xl font-black leading-none text-ink">Write a story</h1>
+      <div className="mt-6">
         <ArticleForm categories={categories} />
       </div>
     </div>

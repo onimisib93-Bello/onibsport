@@ -1,15 +1,27 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { categories, getCategory } from "@/lib/data/categories";
 import { getArticlesByCategory } from "@/lib/data/db-articles";
 import { getFixturesForLeague, getStandingsForLeague } from "@/lib/live/footballData";
+import { leagueTheme } from "@/lib/leagues";
 import ArticleCard from "@/components/ArticleCard";
 import LeagueDataTabs from "@/components/LeagueDataTabs";
+import StandingsTable from "@/components/StandingsTable";
+import TrendingSidebar from "@/components/TrendingSidebar";
 import AdSlot from "@/components/AdSlot";
-import { accentBg } from "@/lib/accent";
+import HubIntro from "@/components/league/HubIntro";
+import HubPortal from "@/components/league/HubPortal";
+import TransferTimeline from "@/components/league/TransferTimeline";
 import { breadcrumbJsonLd } from "@/lib/seo";
 
 export const revalidate = 60;
+
+/** Hubs that open with the glyph-portal camera move, and the word it flies through. */
+const PORTAL_WORDS: Record<string, string> = {
+  "nigeria-football": "NAIJA",
+  npfl: "NPFL",
+};
 
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
@@ -19,11 +31,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const category = getCategory(slug);
   if (!category) return {};
-  const description = `The latest ${category.name} news, match reports, transfer talk and results on Onibsport.`;
+  const description = `${leagueTheme(slug).blurb} The latest ${category.name} news, results, fixtures and table on Onibsport.`;
   return {
-    title: category.name,
+    title: `${category.name} news, results, fixtures and table`,
     description,
-    keywords: [category.name, `${category.name} news`, `${category.name} results`, "Onibsport"],
+    keywords: [category.name, `${category.name} news`, `${category.name} results`, `${category.name} fixtures`, `${category.name} table`, "Onibsport"],
     alternates: { canonical: `/category/${category.slug}` },
     openGraph: {
       title: `${category.name} — Onibsport`,
@@ -45,64 +57,129 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const category = getCategory(slug);
   if (!category) notFound();
+  const theme = leagueTheme(slug);
 
   const [articles, fixtures, standings] = await Promise.all([
     getArticlesByCategory(slug),
     getFixturesForLeague(category.slug),
     getStandingsForLeague(category.slug),
   ]);
-  const [featured, ...rest] = articles;
-  const hasLeagueData = fixtures.length > 0 || !!standings;
+  const [lead, ...rest] = articles;
+  const gridArticles = rest.slice(0, 4);
+  const riverArticles = rest.slice(4);
+  const hasMatches = fixtures.length > 0;
+  const hasTable = !!standings && standings.length > 0;
+  const next = fixtures.filter((f) => f.status === "upcoming").sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff))[0];
+  const portalWord = PORTAL_WORDS[slug];
 
   const jsonLd = breadcrumbJsonLd([
     { name: "Home", path: "/" },
     { name: category.name, path: `/category/${category.slug}` },
   ]);
 
+  const intro = <HubIntro category={category} theme={theme} storyCount={articles.length} standings={standings} next={next} />;
+
+  const sections = [
+    { href: "#latest", label: "Latest", show: true },
+    { href: "#match-centre", label: "Results & fixtures", show: hasMatches },
+    { href: "#table", label: "Table", show: hasTable },
+    { href: "#timeline", label: "Timeline", show: slug === "transfers" },
+  ].filter((s) => s.show);
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className={`${accentBg[category.accent]} py-8 text-white`}>
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="text-sm font-semibold text-white/70">Onibsport</p>
-          <h1 className="mt-1 font-display text-4xl tracking-wide sm:text-5xl">{category.name}</h1>
-        </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="grid gap-10 lg:grid-cols-[1fr_340px]">
+      {portalWord ? (
+        <HubPortal word={portalWord} image={lead?.coverImage || lead?.image} deep={theme.deep} tint={theme.tint} eyebrow={`Onibsport ${category.name} desk`}>
+          {intro}
+        </HubPortal>
+      ) : (
+        <section className="relative overflow-hidden px-4 pb-14 pt-14 sm:px-6 sm:pt-20" style={{ background: theme.deep }}>
+          <div className="pitch-lines pointer-events-none absolute inset-0 opacity-50" aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full opacity-30 blur-3xl"
+            style={{ background: theme.tint }}
+            aria-hidden="true"
+          />
+          <div className="relative">{intro}</div>
+        </section>
+      )}
+
+      {sections.length > 1 && (
+        <nav aria-label={`${category.name} sections`} className="border-b border-line bg-white">
+          <ul className="no-scrollbar mx-auto flex h-14 max-w-[1400px] items-center gap-2 overflow-x-auto px-4 sm:px-6">
+            {sections.map((s) => (
+              <li key={s.href} className="shrink-0">
+                <a href={s.href} className="rounded-full px-4 py-2 text-sm font-bold text-ink/70 transition-colors hover:bg-paper hover:text-ink">
+                  {s.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      <div id="latest" className="mx-auto max-w-[1400px] scroll-mt-32 px-4 py-12 sm:px-6">
+        <div className={hasMatches ? "grid gap-10 lg:grid-cols-[minmax(0,1fr)_440px]" : "grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]"}>
           <div>
             {articles.length === 0 ? (
-              <p className="text-muted">No stories in {category.name} yet — check back soon.</p>
+              <div className="rounded-2xl bg-white p-8 ring-1 ring-line">
+                <h2 className="font-display text-3xl font-black text-ink">No {category.name} stories yet</h2>
+                <p className="mt-2 text-muted">New stories appear here as soon as they&apos;re published. Meanwhile, catch up on the rest of the site.</p>
+                <Link href="/" className="mt-5 inline-flex rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo">
+                  Back to the front page
+                </Link>
+              </div>
             ) : (
               <>
-                {featured && (
-                  <div className="mb-10">
-                    <ArticleCard article={featured} size="large" />
+                {lead && <ArticleCard article={lead} size="large" priority />}
+                {gridArticles.length > 0 && (
+                  <div className="mt-12 grid gap-x-6 gap-y-10 sm:grid-cols-2">
+                    {gridArticles.map((article) => (
+                      <ArticleCard key={article.slug} article={article} />
+                    ))}
                   </div>
                 )}
-                <div className="grid gap-8 sm:grid-cols-2">
-                  {rest.map((article) => (
-                    <ArticleCard key={article.slug} article={article} />
-                  ))}
-                </div>
+                {riverArticles.length > 0 && (
+                  <div className="mt-12 divide-y divide-line border-t border-line">
+                    {riverArticles.map((article) => (
+                      <div key={article.slug} className="py-6">
+                        <ArticleCard article={article} size="row" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
 
-          {hasLeagueData && (
-            <aside className="space-y-6">
-              <div>
-                <h2 className="font-display text-2xl tracking-wide text-ink">{category.name}</h2>
-                <div className="mt-4">
-                  <LeagueDataTabs fixtures={fixtures} standings={standings} />
-                </div>
-              </div>
-              <AdSlot variant="sidebar" />
-            </aside>
-          )}
+          <aside className="space-y-6">
+            {hasMatches ? (
+              <section id="match-centre" aria-labelledby="match-centre-title" className="scroll-mt-32">
+                <h2 id="match-centre-title" className="mb-4 font-display text-4xl font-black text-ink">
+                  Match centre
+                </h2>
+                <LeagueDataTabs league={category.slug} fixtures={fixtures} standings={standings} accent={theme.deep} />
+              </section>
+            ) : (
+              <TrendingSidebar articles={articles.slice(0, 6)} title={`More ${category.shortName}`} />
+            )}
+            <AdSlot variant="sidebar" />
+          </aside>
         </div>
       </div>
+
+      {slug === "transfers" && articles.length >= 3 && <TransferTimeline articles={articles} />}
+
+      {hasTable && (
+        <section id="table" aria-labelledby="table-title" className="mx-auto max-w-[1400px] scroll-mt-32 px-4 pb-6 pt-6 sm:px-6">
+          <h2 id="table-title" className="mb-5 font-display text-4xl font-black text-ink sm:text-5xl">
+            {category.name} table
+          </h2>
+          <StandingsTable rows={standings!} accent={theme.deep} />
+        </section>
+      )}
     </>
   );
 }

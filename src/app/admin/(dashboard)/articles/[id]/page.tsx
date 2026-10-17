@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ArticleForm from "@/components/admin/ArticleForm";
@@ -15,21 +16,27 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <h1 className="font-display text-3xl tracking-wide text-ink">Edit Article</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-5xl font-black leading-none text-ink">Edit story</h1>
         <StatusBadge status={article.status} />
+        {article.status === "PUBLISHED" && (
+          <Link href={`/article/${article.slug}`} target="_blank" className="ml-auto rounded-full px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink">
+            View live story
+          </Link>
+        )}
       </div>
 
       {article.status === "PENDING_REVIEW" && (
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-orange/30 bg-orange/5 px-4 py-3">
-          <p className="text-sm text-ink/80">
-            This story is waiting for editorial approval{article.source ? ` (sourced from ${article.source})` : ""}.
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-night px-5 py-4 text-white">
+          <p className="text-sm">
+            <span className="font-bold text-orange">Waiting for approval.</span> Read it through, fix anything that&apos;s off, then publish
+            {article.source ? ` (sourced from ${article.source})` : ""}.
           </p>
           <PublishButton id={article.id} />
         </div>
       )}
 
-      <div className="mt-6 max-w-2xl">
+      <div className="mt-6">
         <ArticleForm
           categories={categories}
           initial={{

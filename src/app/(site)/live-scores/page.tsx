@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { categories } from "@/lib/data/categories";
-import { getFixturesForLeague } from "@/lib/live/footballData";
-import LiveScoresView from "@/components/LiveScoresView";
+import { SCORE_LEAGUES, getFixturesForDate, getFixturesForRange, parseDateParam, todayIso } from "@/lib/live/footballData";
+import LiveScoresView, { type ScoresView } from "@/components/LiveScoresView";
 import AdSlot from "@/components/AdSlot";
 
-const description = "Live football scores, results and upcoming fixtures across the world's top leagues and the NPFL.";
+const description =
+  "Live football scores, results and fixtures for any date across the Premier League, La Liga, Serie A, Bundesliga, Champions League and the NPFL.";
 
 export const metadata: Metadata = {
-  title: "Live Scores",
+  title: "Live scores, results and fixtures",
   description,
-  keywords: ["live football scores", "football results", "NPFL fixtures", "Premier League scores"],
+  keywords: ["live football scores", "football results", "football fixtures", "NPFL fixtures", "Premier League scores", "results by date"],
   alternates: { canonical: "/live-scores" },
   openGraph: {
     title: "Live Scores — Onibsport",
@@ -26,18 +27,52 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function LiveScoresPage() {
-  const fixturesByLeague = await Promise.all(categories.map((c) => getFixturesForLeague(c.slug)));
-  const fixtures = fixturesByLeague.flat();
+function shift(date: string, days: number) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export default async function LiveScoresPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const today = todayIso();
+  const date = parseDateParam(one(params.date)) ?? today;
+  const rawView = one(params.view);
+  const view: ScoresView = rawView === "results" || rawView === "fixtures" ? rawView : "date";
+  const rawLeague = one(params.league);
+  const league = rawLeague && categories.some((c) => c.slug === rawLeague) ? rawLeague : "all";
+
+  let fixtures;
+  if (view === "results") {
+    fixtures = (await getFixturesForRange(shift(today, -7), today))
+      .filter((f) => f.status === "finished")
+      .sort((a, b) => +new Date(b.kickoff) - +new Date(a.kickoff));
+  } else if (view === "fixtures") {
+    fixtures = (await getFixturesForRange(today, shift(today, 7)))
+      .filter((f) => f.status === "upcoming")
+      .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
+  } else {
+    fixtures = await getFixturesForDate(date);
+  }
+
+  const scoreCategories = categories.filter((c) => SCORE_LEAGUES.includes(c.slug));
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl tracking-wide text-ink sm:text-5xl">Live Scores</h1>
-      <p className="mt-2 text-muted">Follow every match as it happens, filtered by league.</p>
-      <div className="mt-6">
-        <AdSlot variant="leaderboard" className="mb-6" />
-        <LiveScoresView fixtures={fixtures} categories={categories} />
+    <>
+      <section className="relative overflow-hidden bg-night px-4 pb-12 pt-12 text-white sm:px-6">
+        <div className="pitch-lines pointer-events-none absolute inset-0 opacity-50" aria-hidden="true" />
+        <div className="relative mx-auto max-w-5xl">
+          <h1 className="font-display text-6xl font-black leading-[0.85] sm:text-8xl">Scores &amp; fixtures</h1>
+          <p className="mt-4 max-w-xl text-lg text-white/70">
+            Live scores, full-time results and upcoming kick-offs. Pick any date to see who played and who&apos;s up next. Times are West Africa Time.
+          </p>
+        </div>
+      </section>
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+        <LiveScoresView fixtures={fixtures} categories={scoreCategories} date={date} today={today} league={league} view={view} />
+        <AdSlot variant="leaderboard" className="mt-12" />
       </div>
-    </div>
+    </>
   );
 }

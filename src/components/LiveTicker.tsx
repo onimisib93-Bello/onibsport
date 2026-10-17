@@ -1,43 +1,49 @@
 import Link from "next/link";
-import { getAllLiveFixtures } from "@/lib/live/footballData";
+import { getTickerFixtures } from "@/lib/live/footballData";
+import { formatKickoff } from "@/lib/time";
+import Marquee from "@/components/ui/Marquee";
+import LeagueCrest from "@/components/ui/LeagueCrest";
+import LiveDot from "@/components/ui/LiveDot";
 
+/** The LED perimeter board: live scores first, then today's kick-offs and latest results. */
 export default async function LiveTicker() {
-  const live = await getAllLiveFixtures();
-  if (live.length === 0) return null;
-
-  const items = [...live, ...live]; // duplicated for seamless marquee loop
+  const fixtures = await getTickerFixtures();
+  if (fixtures.length === 0) return null;
+  const liveCount = fixtures.filter((f) => f.status === "live").length;
 
   return (
-    <div className="overflow-hidden border-b border-indigo-dark bg-indigo text-white">
-      <div className="mx-auto flex max-w-6xl items-stretch">
+    <div className="relative z-50 border-b border-white/10 bg-night text-white">
+      <div className="mx-auto flex h-10 max-w-[1400px] items-stretch">
         <Link
           href="/live-scores"
-          className="z-10 flex shrink-0 items-center gap-2 bg-orange px-3 py-2 text-xs font-bold tracking-wide text-white sm:px-4"
+          className="flex shrink-0 items-center gap-2 bg-orange px-3 font-display text-[15px] font-extrabold tracking-wide text-ink transition-colors hover:bg-gold sm:px-4"
         >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-          </span>
-          LIVE
+          {liveCount > 0 ? <LiveDot className="[&>span]:bg-ink" /> : null}
+          {liveCount > 0 ? `${liveCount} live` : "Scores"}
         </Link>
-        <div className="group relative flex-1 overflow-hidden">
-          <div className="flex w-max animate-[ticker_28s_linear_infinite] gap-8 py-2 pl-6 group-hover:[animation-play-state:paused]">
-            {items.map((f, i) => (
-              <Link
-                key={`${f.id}-${i}`}
-                href="/live-scores"
-                className="tabular-nums flex shrink-0 items-center gap-2 text-sm font-semibold whitespace-nowrap hover:text-orange"
-              >
-                <span>{f.home}</span>
-                <span className="rounded bg-white/10 px-1.5 py-0.5">
-                  {f.homeScore} – {f.awayScore}
+        <Marquee label="Live scores ticker" seconds={Math.max(30, fixtures.length * 6)} controlClassName="text-white/60 hover:text-white border-l border-white/10">
+          {fixtures.map((f) => (
+            <Link
+              key={f.id}
+              href={`/live-scores?league=${f.league}`}
+              className="flex shrink-0 items-center gap-2.5 border-r border-white/10 px-5 text-[13px] font-semibold whitespace-nowrap transition-colors hover:bg-white/5"
+            >
+              <LeagueCrest slug={f.league} size={18} />
+              <span>{f.home}</span>
+              {f.status === "upcoming" ? (
+                <span className="rounded bg-white/10 px-1.5 py-0.5 font-display text-sm font-bold tabular-nums text-white/80">{formatKickoff(f.kickoff)}</span>
+              ) : (
+                <span className={`font-display text-lg font-black leading-none tabular-nums ${f.status === "live" ? "led-glow text-orange" : "text-white"}`}>
+                  {f.homeScore}–{f.awayScore}
                 </span>
-                <span>{f.away}</span>
-                <span className="text-xs font-normal text-white/60">{f.minute}&apos;</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+              )}
+              <span>{f.away}</span>
+              <span className="text-[11px] font-medium text-white/50">
+                {f.status === "live" ? (f.minute != null ? `${f.minute}'` : "Live") : f.status === "finished" ? "FT" : "WAT"}
+              </span>
+            </Link>
+          ))}
+        </Marquee>
       </div>
     </div>
   );

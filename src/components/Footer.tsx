@@ -1,30 +1,33 @@
 import Link from "next/link";
 import Image from "next/image";
-import { TwitterLogo, FacebookLogo, InstagramLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
+import { XLogo, FacebookLogo, InstagramLogo, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { categories } from "@/lib/data/categories";
 import { SOCIAL_LINKS } from "@/lib/config";
+import LeagueCrest from "@/components/ui/LeagueCrest";
+import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t border-line bg-ink text-white/80">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="relative mt-20 overflow-hidden bg-night text-white">
+      <div className="pitch-lines pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
+      <div className="relative mx-auto max-w-[1400px] px-4 pt-14 sm:px-6">
+        <div className="grid gap-12 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
           <div>
-            <Link href="/" className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Onibsport" width={36} height={31} className="h-8 w-auto brightness-0 invert" />
-              <span className="font-display text-xl tracking-wide text-white">
-                ONIB<span className="text-orange">SPORT</span>
+            <Link href="/" className="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
+              <Image src="/logo.png" alt="" width={44} height={39} className="h-10 w-auto" />
+              <span className="font-display text-3xl font-black leading-none tracking-tight text-indigo">
+                Onib<span className="text-orange-deep">sport</span>
               </span>
             </Link>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/60">
-              Breaking football news, transfers, and match coverage — from the Premier League to the NPFL.
+            <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/65">
+              Football news, transfers and live scores — from Lagos to London, Enyimba to El Clásico.
             </p>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-6 flex gap-2">
               {[
-                { Icon: TwitterLogo, href: SOCIAL_LINKS.twitter, label: "Follow Onibsport on X" },
-                { Icon: FacebookLogo, href: SOCIAL_LINKS.facebook, label: "Follow Onibsport on Facebook" },
-                { Icon: InstagramLogo, href: SOCIAL_LINKS.instagram, label: "Follow Onibsport on Instagram" },
-                { Icon: YoutubeLogo, href: SOCIAL_LINKS.youtube, label: "Subscribe to Onibsport on YouTube" },
+                { Icon: XLogo, href: SOCIAL_LINKS.twitter, label: "Onibsport on X" },
+                { Icon: FacebookLogo, href: SOCIAL_LINKS.facebook, label: "Onibsport on Facebook" },
+                { Icon: InstagramLogo, href: SOCIAL_LINKS.instagram, label: "Onibsport on Instagram" },
+                { Icon: YoutubeLogo, href: SOCIAL_LINKS.youtube, label: "Onibsport on YouTube" },
               ].map(({ Icon, href, label }) => (
                 <a
                   key={label}
@@ -32,69 +35,77 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-white/10 transition-colors hover:bg-orange"
+                  className="grid h-11 w-11 place-items-center rounded-full bg-white/10 transition-colors hover:bg-orange hover:text-ink"
                 >
-                  <Icon size={18} weight="fill" />
+                  <Icon size={20} weight="fill" />
                 </a>
               ))}
             </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-white">Leagues</h3>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              {categories.slice(0, 4).map((c) => (
+          <nav aria-label="Leagues">
+            <h2 className="font-display text-xl font-extrabold">Leagues</h2>
+            <ul className="mt-4 space-y-1">
+              {categories.map((c) => (
                 <li key={c.slug}>
-                  <Link href={`/category/${c.slug}`} className="text-white/60 hover:text-orange">
+                  <Link href={`/category/${c.slug}`} className="flex items-center gap-2.5 py-1 text-sm text-white/70 transition-colors hover:text-white">
+                    <LeagueCrest slug={c.slug} size={20} />
                     {c.name}
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
-          <div>
-            <h3 className="text-sm font-semibold text-white">Nigeria</h3>
+          <nav aria-label="Scores">
+            <h2 className="font-display text-xl font-extrabold">Match centre</h2>
             <ul className="mt-4 space-y-2.5 text-sm">
-              {categories.slice(4).map((c) => (
-                <li key={c.slug}>
-                  <Link href={`/category/${c.slug}`} className="text-white/60 hover:text-orange">
-                    {c.name}
-                  </Link>
-                </li>
-              ))}
               <li>
-                <Link href="/live-scores" className="text-white/60 hover:text-orange">
-                  Live Scores
+                <Link href="/live-scores" className="text-white/70 hover:text-white">
+                  Live scores
+                </Link>
+              </li>
+              <li>
+                <Link href="/live-scores?view=results" className="text-white/70 hover:text-white">
+                  Latest results
+                </Link>
+              </li>
+              <li>
+                <Link href="/live-scores?view=fixtures" className="text-white/70 hover:text-white">
+                  Upcoming fixtures
+                </Link>
+              </li>
+              <li>
+                <Link href="/category/premier-league#table" className="text-white/70 hover:text-white">
+                  League tables
+                </Link>
+              </li>
+              <li>
+                <Link href="/search" className="text-white/70 hover:text-white">
+                  Search the archive
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
 
           <div>
-            <h3 className="text-sm font-semibold text-white">Get the headlines first</h3>
-            <p className="mt-4 text-sm text-white/60">Breaking news straight to your inbox. No spam, unsubscribe anytime.</p>
-            <form className="mt-3 flex gap-2">
-              <input
-                type="email"
-                required
-                placeholder="you@email.com"
-                aria-label="Email address"
-                className="min-w-0 flex-1 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-orange focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-full bg-orange px-4 py-2 text-sm font-semibold text-white hover:bg-gold"
-              >
-                Subscribe
-              </button>
-            </form>
+            <h2 className="font-display text-xl font-extrabold">Get the headlines first</h2>
+            <p className="mt-3 text-sm text-white/65">Breaking news and the weekend&apos;s biggest stories, once a day. Unsubscribe any time.</p>
+            <div className="mt-4">
+              <NewsletterForm tone="dark" />
+            </div>
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
+        <p
+          aria-hidden="true"
+          className="pointer-events-none mt-16 select-none text-center font-display text-[22vw] font-black leading-[0.75] tracking-tighter text-white/[0.06] lg:text-[17rem]"
+        >
+          ONIBSPORT
+        </p>
+        <div className="flex flex-col gap-2 border-t border-white/10 py-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Onibsport. All rights reserved.</p>
-          <p>Built for fans of the beautiful game — everywhere from Lagos to London.</p>
+          <p>Kick-off times are shown in West Africa Time (WAT).</p>
         </div>
       </div>
     </footer>

@@ -1,45 +1,190 @@
 import { StandingRow } from "@/lib/types";
+import Crest from "@/components/ui/Crest";
+import { cn } from "@/lib/utils";
 
-function withPoints(rows: StandingRow[]) {
+type Ranked = StandingRow & { points: number; goalDiff: number; position: number };
+
+function rank(rows: StandingRow[]): Ranked[] {
   return rows
     .map((r) => ({ ...r, points: r.won * 3 + r.drawn, goalDiff: r.goalsFor - r.goalsAgainst }))
-    .sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor);
+    .sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor)
+    .map((r, i) => ({ ...r, position: i + 1 }));
 }
 
-export default function StandingsTable({ rows }: { rows: StandingRow[] }) {
-  const sorted = withPoints(rows);
+const gd = (n: number) => (n > 0 ? `+${n}` : String(n));
+
+function zone(position: number, total: number): "top" | "bottom" | null {
+  if (position <= 4) return "top";
+  if (total >= 10 && position > total - 3) return "bottom";
+  return null;
+}
+
+const FORM_STYLE: Record<string, string> = {
+  W: "bg-[#1f9d5c] text-white",
+  D: "bg-line text-ink",
+  L: "bg-[#d23b3b] text-white",
+};
+
+function Form({ form }: { form?: string }) {
+  if (!form) return null;
+  const results = form.split(",").filter(Boolean).slice(-5);
+  return (
+    <span className="flex gap-1" aria-label={`Last ${results.length}: ${results.join(" ")}`}>
+      {results.map((r, i) => (
+        <span key={i} aria-hidden="true" className={cn("grid h-5 w-5 place-items-center rounded text-[10px] font-bold", FORM_STYLE[r] ?? "bg-line")}>
+          {r}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Full league table with qualification and relegation zones. */
+export default function StandingsTable({ rows, accent = "#2d1b69" }: { rows: StandingRow[]; accent?: string }) {
+  const sorted = rank(rows);
+  const showForm = sorted.some((r) => r.form);
+  const hasBottom = sorted.length >= 10;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-white">
-      <table className="w-full min-w-[520px] text-sm">
-        <thead>
-          <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
-            <th className="px-3 py-2.5">#</th>
-            <th className="px-3 py-2.5">Team</th>
-            <th className="px-2 py-2.5 text-center tabular-nums">P</th>
-            <th className="px-2 py-2.5 text-center tabular-nums">W</th>
-            <th className="px-2 py-2.5 text-center tabular-nums">D</th>
-            <th className="px-2 py-2.5 text-center tabular-nums">L</th>
-            <th className="px-2 py-2.5 text-center tabular-nums">GD</th>
-            <th className="px-3 py-2.5 text-center tabular-nums">Pts</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((r, i) => (
-            <tr key={r.team} className={`border-b border-line last:border-0 ${i < 4 ? "bg-sky/[0.04]" : ""}`}>
-              <td className="px-3 py-2.5 tabular-nums text-muted">{i + 1}</td>
-              <td className="px-3 py-2.5 font-semibold text-ink">{r.team}</td>
-              <td className="px-2 py-2.5 text-center tabular-nums text-ink/80">{r.played}</td>
-              <td className="px-2 py-2.5 text-center tabular-nums text-ink/80">{r.won}</td>
-              <td className="px-2 py-2.5 text-center tabular-nums text-ink/80">{r.drawn}</td>
-              <td className="px-2 py-2.5 text-center tabular-nums text-ink/80">{r.lost}</td>
-              <td className="px-2 py-2.5 text-center tabular-nums text-ink/80">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
-              <td className="px-3 py-2.5 text-center tabular-nums font-bold text-ink">{r.points}</td>
+    <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
+          <caption className="sr-only">League table, ranked by points then goal difference</caption>
+          <thead>
+            <tr className="border-b border-line text-left text-xs font-semibold text-muted">
+              <th scope="col" className="sticky left-0 z-10 bg-white py-3 pl-4 pr-2">
+                <abbr title="Position" className="no-underline">
+                  Pos
+                </abbr>
+              </th>
+              <th scope="col" className="sticky left-12 z-10 bg-white px-2 py-3">
+                Club
+              </th>
+              {[
+                ["P", "Played"],
+                ["W", "Won"],
+                ["D", "Drawn"],
+                ["L", "Lost"],
+                ["GF", "Goals for"],
+                ["GA", "Goals against"],
+                ["GD", "Goal difference"],
+              ].map(([abbr, title]) => (
+                <th key={abbr} scope="col" className="px-2 py-3 text-center tabular-nums">
+                  <abbr title={title} className="no-underline">
+                    {abbr}
+                  </abbr>
+                </th>
+              ))}
+              <th scope="col" className="px-3 py-3 text-center">
+                <abbr title="Points" className="no-underline">
+                  Pts
+                </abbr>
+              </th>
+              {showForm && (
+                <th scope="col" className="hidden px-3 py-3 sm:table-cell">
+                  Form
+                </th>
+              )}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="border-t border-line px-3 py-2 text-[11px] text-muted">Highlighted rows indicate the top four positions.</p>
+          </thead>
+          <tbody>
+            {sorted.map((r) => {
+              const z = zone(r.position, sorted.length);
+              return (
+                <tr key={r.team} className="group border-b border-line transition-colors last:border-0 hover:bg-paper">
+                  <td className="sticky left-0 z-10 bg-white py-2.5 pl-4 pr-2 group-hover:bg-paper">
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="h-6 w-1 rounded-full"
+                        style={{ background: z === "top" ? accent : z === "bottom" ? "#d23b3b" : "transparent" }}
+                      />
+                      <span className="w-5 font-display text-lg font-bold tabular-nums text-ink">{r.position}</span>
+                    </span>
+                  </td>
+                  <th scope="row" className="sticky left-12 z-10 bg-white px-2 py-2.5 text-left font-semibold text-ink group-hover:bg-paper">
+                    <span className="flex items-center gap-2.5">
+                      <Crest name={r.team} src={r.crest} size={22} />
+                      <span className="max-w-[150px] truncate">{r.team}</span>
+                    </span>
+                  </th>
+                  {[r.played, r.won, r.drawn, r.lost, r.goalsFor, r.goalsAgainst].map((v, i) => (
+                    <td key={i} className="px-2 py-2.5 text-center tabular-nums text-ink/75">
+                      {v}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2.5 text-center tabular-nums text-ink/75">{gd(r.goalDiff)}</td>
+                  <td className="px-3 py-2.5 text-center font-display text-lg font-black tabular-nums text-ink">{r.points}</td>
+                  {showForm && (
+                    <td className="hidden px-3 py-2.5 sm:table-cell">
+                      <Form form={r.form} />
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line px-4 py-2.5 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-3 w-1 rounded-full" style={{ background: accent }} />
+          Top four
+        </span>
+        {hasBottom && (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-3 w-1 rounded-full bg-[#d23b3b]" />
+            Relegation zone
+          </span>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** Compact top-of-the-table view for sidebars and the league desk. */
+export function MiniTable({ rows, limit = 6, accent = "#2d1b69" }: { rows: StandingRow[]; limit?: number; accent?: string }) {
+  const sorted = rank(rows).slice(0, limit);
+  return (
+    <table className="mt-3 w-full text-sm">
+      <caption className="sr-only">Top {limit} of the league table</caption>
+      <thead>
+        <tr className="text-left text-xs text-muted">
+          <th scope="col" className="w-7 pb-2 font-semibold">
+            #
+          </th>
+          <th scope="col" className="pb-2 font-semibold">
+            Club
+          </th>
+          <th scope="col" className="w-8 pb-2 text-center font-semibold">
+            P
+          </th>
+          <th scope="col" className="w-10 pb-2 text-center font-semibold">
+            GD
+          </th>
+          <th scope="col" className="w-9 pb-2 text-right font-semibold">
+            Pts
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => (
+          <tr key={r.team} className="border-t border-line">
+            <td className="py-2 font-display text-base font-bold tabular-nums" style={{ color: r.position <= 4 ? accent : undefined }}>
+              {r.position}
+            </td>
+            <th scope="row" className="py-2 text-left font-semibold text-ink">
+              <span className="flex min-w-0 items-center gap-2">
+                <Crest name={r.team} src={r.crest} size={18} />
+                <span className="truncate">{r.team}</span>
+              </span>
+            </th>
+            <td className="py-2 text-center tabular-nums text-ink/70">{r.played}</td>
+            <td className="py-2 text-center tabular-nums text-ink/70">{gd(r.goalDiff)}</td>
+            <td className="py-2 text-right font-display text-base font-black tabular-nums text-ink">{r.points}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

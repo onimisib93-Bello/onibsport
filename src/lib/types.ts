@@ -50,6 +50,9 @@ export interface Fixture {
   minute: number | null;
   status: FixtureStatus;
   kickoff: string;
+  homeCrest?: string;
+  awayCrest?: string;
+  matchday?: number;
 }
 
 export interface StandingRow {
@@ -60,4 +63,7 @@ export interface StandingRow {
   lost: number;
   goalsFor: number;
   goalsAgainst: number;
+  crest?: string;
+  /** Recent results, oldest first, e.g. "W,D,L,W,W". */
+  form?: string;
 }
