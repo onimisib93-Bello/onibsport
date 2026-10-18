@@ -61,6 +61,8 @@ const CULL = 1.6;
 /** How much of a wheel-notch or a dragged pixel counts as one item. */
 const WHEEL_UNITS = 900;
 const DRAG_UNITS = 420;
+/** Pixels the pointer must travel before a press becomes a drag rather than a click. */
+const DRAG_THRESHOLD = 6;
 /** Quiet time after the last wheel event before the wheel settles on an item. */
 const SETTLE = 140;
 /** Fraction of the remaining distance closed each frame. 1 = no smoothing. */
@@ -246,6 +248,10 @@ window.clearTimeout(settling.current);
 };
 }, [to, last]);
 const drag = React.useRef<number | null>(null);
+// Pointer capture redirects the click away from the card link, so only
+// capture once the pointer has moved far enough to count as a drag.
+const dragStart = React.useRef(0);
+const dragged = React.useRef(false);
 const settling = React.useRef(0);
 return (
 <section
@@ -266,17 +272,34 @@ className="focus-visible:outline-indigo absolute inset-0 cursor-grab touch-pan-x
 style={{ perspective: `${metrics.depth}px` }}
 onPointerDown={(event) => {
 drag.current = event.clientY;
-event.currentTarget.setPointerCapture(event.pointerId);
+dragStart.current = event.clientY;
+dragged.current = false;
 }}
 onPointerMove={(event) => {
 if (drag.current === null) return;
+if (!dragged.current) {
+if (Math.abs(event.clientY - dragStart.current) < DRAG_THRESHOLD) return;
+dragged.current = true;
+event.currentTarget.setPointerCapture(event.pointerId);
+}
 to(target.current + (drag.current - event.clientY) / DRAG_UNITS);
 drag.current = event.clientY;
 }}
 onPointerUp={() => {
 // Land on an item rather than between two.
 drag.current = null;
-if (target.current > 1) to(Math.round(target.current));
+if (dragged.current && target.current > 1) to(Math.round(target.current));
+}}
+onPointerCancel={() => {
+drag.current = null;
+}}
+onClickCapture={(event) => {
+// A drag that ends over a card should not also open it.
+if (dragged.current) {
+event.preventDefault();
+event.stopPropagation();
+dragged.current = false;
+}
 }}
 onKeyDown={(event) => {
 if (event.key === "ArrowDown") to(Math.round(target.current) + 1);
@@ -296,6 +319,7 @@ return (
 <Tag
 id={`works-wheel-${i}`}
 role="option"
+draggable={false}
 aria-selected={i === active}
 href={item.href}
 ref={(node: HTMLElement | null) => {

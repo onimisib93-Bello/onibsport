@@ -4,7 +4,8 @@ import Link from "next/link";
 import { getArticleBySlug, getRelatedArticles, getAllPublishedForSitemap, getLatestArticles } from "@/lib/data/db-articles";
 import { getCategory } from "@/lib/data/categories";
 import { leagueTheme } from "@/lib/leagues";
-import { timeAgo, formatDay, formatKickoff } from "@/lib/time";
+import { formatDay, formatKickoff } from "@/lib/time";
+import TimeAgo from "@/components/ui/TimeAgo";
 import { parseBlocks, plainText, readingMinutes, RenderBlock } from "@/lib/richText";
 import ArticleCard from "@/components/ArticleCard";
 import ShareBar from "@/components/ShareBar";
@@ -139,7 +140,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               <span className="mx-2" aria-hidden="true">
                 /
               </span>
-              Updated {timeAgo(article.publishedAt)}
+              Updated <TimeAgo iso={article.publishedAt} />
             </p>
             <div className="ml-auto">
               <ShareBar title={article.title} path={`/article/${article.slug}`} />

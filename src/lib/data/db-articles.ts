@@ -1,4 +1,5 @@
 import type { Article as PrismaArticle, Category as PrismaCategory } from "@prisma/client";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { Article, CategorySlug } from "@/lib/types";
 
@@ -80,7 +81,8 @@ export async function getArticlesByCategory(slug: string, limit = 40): Promise<A
   }
 }
 
-export async function getArticleBySlug(slug: string): Promise<Article | undefined> {
+// Wrapped in cache() so generateMetadata and the page share one query per request.
+export const getArticleBySlug = cache(async function getArticleBySlug(slug: string): Promise<Article | undefined> {
   try {
     const row = await prisma.article.findFirst({
       where: { slug, status: "PUBLISHED" },
@@ -90,7 +92,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | undefine
   } catch {
     return undefined;
   }
-}
+});
 
 export async function getRelatedArticles(article: Article, limit = 3): Promise<Article[]> {
   try {
@@ -110,7 +112,8 @@ export async function getRelatedArticles(article: Article, limit = 3): Promise<A
   }
 }
 
-export async function getFirstBreakingArticle(): Promise<Article | undefined> {
+// Shared between the layout and pages within one request.
+export const getFirstBreakingArticle = cache(async function getFirstBreakingArticle(): Promise<Article | undefined> {
   try {
     const row = await prisma.article.findFirst({
       where: { status: "PUBLISHED", isBreaking: true },
@@ -121,7 +124,7 @@ export async function getFirstBreakingArticle(): Promise<Article | undefined> {
   } catch {
     return undefined;
   }
-}
+});
 
 export async function getFeaturedVideoArticle(): Promise<Article | undefined> {
   try {

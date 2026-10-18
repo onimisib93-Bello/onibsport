@@ -3,7 +3,7 @@ import { PlayCircle } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "@/lib/types";
 import { getCategory } from "@/lib/data/categories";
 import { leagueTheme } from "@/lib/leagues";
-import { timeAgo } from "@/lib/time";
+import TimeAgo from "@/components/ui/TimeAgo";
 import NewsImage from "@/components/ui/NewsImage";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ function Kicker({ article, onDark = false }: { article: Article; onDark?: boolea
 function Meta({ article, onDark = false }: { article: Article; onDark?: boolean }) {
   return (
     <p className={cn("text-xs", onDark ? "text-white/60" : "text-muted")}>
-      <time dateTime={article.publishedAt}>{timeAgo(article.publishedAt)}</time>
+      <TimeAgo iso={article.publishedAt} />
     </p>
   );
 }
@@ -143,7 +143,7 @@ export default function ArticleCard({
             <span className="mx-1.5" aria-hidden="true">
               /
             </span>
-            <time dateTime={article.publishedAt}>{timeAgo(article.publishedAt)}</time>
+            <TimeAgo iso={article.publishedAt} />
           </p>
         </div>
       </Link>

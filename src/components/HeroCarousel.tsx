@@ -8,7 +8,7 @@ import { CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react/dist/s
 import { Article } from "@/lib/types";
 import { getCategory } from "@/lib/data/categories";
 import { leagueTheme } from "@/lib/leagues";
-import { timeAgo } from "@/lib/time";
+import TimeAgo from "@/components/ui/TimeAgo";
 import NewsImage from "@/components/ui/NewsImage";
 import { cn } from "@/lib/utils";
 
@@ -134,7 +134,7 @@ export default function HeroCarousel({ articles }: { articles: Article[] }) {
                     {currentCategory.name}
                   </span>
                 )}
-                <span className="text-xs font-medium text-white/70">{timeAgo(current.publishedAt)}</span>
+                <TimeAgo iso={current.publishedAt} className="text-xs font-medium text-white/70" />
               </div>
               <h2 className="mt-3 line-clamp-4 font-display text-[36px] font-black leading-[0.94] text-white sm:text-[52px] xl:text-[64px]">{current.title}</h2>
               <p className="mt-3 hidden max-w-2xl text-[17px] leading-relaxed text-white/80 sm:block">{current.dek}</p>

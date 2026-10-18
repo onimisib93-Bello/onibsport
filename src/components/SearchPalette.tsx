@@ -9,7 +9,7 @@ import { Article } from "@/lib/types";
 import { categories, getCategory } from "@/lib/data/categories";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import NewsImage from "@/components/ui/NewsImage";
-import { timeAgo } from "@/lib/time";
+import TimeAgo from "@/components/ui/TimeAgo";
 
 /** ⌘K search popup: instant results as you type, arrow keys to move, Enter to open. */
 export default function SearchPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -180,7 +180,7 @@ export default function SearchPalette({ open, onClose }: { open: boolean; onClos
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold text-muted">
-                        {cat?.name} <span className="font-normal">· {timeAgo(a.publishedAt)}</span>
+                        {cat?.name}, <TimeAgo iso={a.publishedAt} className="font-normal" />
                       </span>
                       <span className="mt-0.5 line-clamp-2 block font-semibold leading-snug text-ink">{a.title}</span>
                     </span>
