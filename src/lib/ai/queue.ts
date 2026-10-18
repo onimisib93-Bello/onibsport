@@ -5,6 +5,9 @@ export interface SourceItem {
   sourceUrl?: string;
   rawSummary: string;
   categorySlug: string;
+  /** The alert this came from, e.g. "Arsenal". Used to group the AI Desk list. */
+  keyword?: string;
+  publishedAt?: string;
 }
 
 /**
