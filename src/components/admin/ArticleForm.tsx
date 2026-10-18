@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   TextHTwo,
@@ -17,6 +17,8 @@ import {
 import { parseBlocks, plainText, readingMinutes, RichText } from "@/lib/richText";
 import NewsImage from "@/components/ui/NewsImage";
 import { clearHandoff, parseChatDraft, readHandoff } from "@/lib/ai/chatDraft";
+import { readSocialKit, saveSocialKit, type SocialKit } from "@/lib/ai/social";
+import SocialPostsPanel from "@/components/admin/SocialPostsPanel";
 import { cn } from "@/lib/utils";
 
 interface CategoryOption {
@@ -80,11 +82,14 @@ export default function ArticleForm({
   categories,
   initial,
   openImport = false,
+  aiEnabled = false,
 }: {
   categories: CategoryOption[];
   initial?: ArticleFormValues;
   /** Start with the "Paste a draft from Claude" panel open. */
   openImport?: boolean;
+  /** ANTHROPIC_API_KEY is set, so social posts can be written in one click. */
+  aiEnabled?: boolean;
 }) {
   const router = useRouter();
   const isEdit = !!initial?.id;
@@ -117,6 +122,20 @@ export default function ArticleForm({
   const [importOpen, setImportOpen] = useState(openImport);
   const [importText, setImportText] = useState("");
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [socialKit, setSocialKit] = useState<SocialKit | null>(null);
+
+  // Posts written earlier for this story (kept in this browser) show up again when it's reopened.
+  useEffect(() => {
+    const saved = readSocialKit(initial?.slug ?? "");
+    if (!saved || Object.keys(saved).length === 0) return;
+    const id = window.setTimeout(() => setSocialKit(saved), 0);
+    return () => window.clearTimeout(id);
+  }, [initial?.slug]);
+
+  function changeSocialKit(kit: SocialKit | null, slug = values.slug) {
+    setSocialKit(kit);
+    saveSocialKit(slug, kit ?? {});
+  }
 
   function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -208,10 +227,12 @@ export default function ArticleForm({
     const handoff = readHandoff();
     const wanted = parsed.category ?? handoff?.categorySlug;
     const category = categories.find((c) => wanted && (c.slug === wanted || slugify(c.name) === wanted));
+    const nextSlug = slugTouched ? values.slug : slugify(parsed.title);
+    if (parsed.social && Object.keys(parsed.social).length > 0) changeSocialKit(parsed.social, nextSlug);
     setValues((v) => ({
       ...v,
       title: parsed.title,
-      slug: slugTouched ? v.slug : slugify(parsed.title),
+      slug: nextSlug,
       dek: parsed.dek || v.dek,
       body: parsed.body,
       tags: parsed.tags || v.tags,
@@ -248,6 +269,8 @@ export default function ArticleForm({
         setError(typeof data.error === "string" ? data.error : "Could not save the article. Check the fields and try again.");
         return;
       }
+      // Keep the social posts under the web address the story was saved with.
+      if (socialKit) saveSocialKit(values.slug, socialKit);
       router.push("/admin/articles");
       router.refresh();
     } finally {
@@ -666,6 +689,15 @@ export default function ArticleForm({
             ))}
           </ul>
         </section>
+
+        <SocialPostsPanel
+          slug={values.slug}
+          published={values.status === "PUBLISHED"}
+          article={{ title: values.title, dek: values.dek, body: values.body, hub: categoryName }}
+          aiEnabled={aiEnabled}
+          kit={socialKit}
+          onKitChange={(kit) => changeSocialKit(kit)}
+        />
 
         <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
           <div role="tablist" aria-label="Preview" className="flex border-b border-line">

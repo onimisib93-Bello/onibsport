@@ -4,6 +4,7 @@ import { z } from "zod";
 import { SourceItem } from "@/lib/ai/queue";
 import { fetchSourceArticle } from "@/lib/ai/sourceText";
 import { CategorySlug } from "@/lib/types";
+import { SOCIAL_REPLY_FORMAT, SOCIAL_RULES, type SocialKit } from "@/lib/ai/social";
 
 /** Model the AI Desk writes with. */
 const MODEL = "claude-sonnet-5";
@@ -27,7 +28,20 @@ const DraftSchema = z.object({
   tags: z.array(z.string()).describe("4-6 specific tags: clubs, players, competition, topic."),
   category: z.enum(CATEGORY_SLUGS).describe("The Onibsport hub this story belongs in."),
   imageAlt: z.string().describe("Alt text for the lead photo: who/what is shown and where, under 125 characters."),
+  social: SocialSchema(),
 });
+
+/** One field per network, written to the social rules (see social.ts). */
+export function SocialSchema() {
+  return z.object({
+    facebook: z.string().describe("Facebook post, with {{LINK}} where the article link goes."),
+    x: z.string().describe("X post under 250 characters including {{LINK}}."),
+    instagram: z.string().describe("Instagram caption with hashtags and an IMAGE TEXT line; no {{LINK}}."),
+    tiktok: z.string().describe("TikTok/Reels script: HOOK, SCRIPT, ON-SCREEN TEXT, CAPTION; no {{LINK}}."),
+    whatsapp: z.string().describe("WhatsApp channel post ending with Read more: {{LINK}}."),
+    threads: z.string().describe("Threads post under 450 characters ending with {{LINK}}."),
+  });
+}
 
 export interface GeneratedDraft {
   title: string;
@@ -41,6 +55,8 @@ export interface GeneratedDraft {
   /** Publisher of the source story, e.g. "BBC Sport". */
   sourceOutlet: string;
   sourceUrl?: string;
+  /** Ready-to-post copy per network ({{LINK}} marks the article link). */
+  social?: SocialKit;
   isStub: boolean;
 }
 
@@ -144,6 +160,8 @@ export function buildChatPrompt(brief: SourceBrief): string {
   return [
     SYSTEM_PROMPT,
     "",
+    SOCIAL_RULES,
+    "",
     "How to reply",
     "Reply with one plain-text code block (```text ... ```) and nothing outside it, laid out exactly like this:",
     "",
@@ -154,6 +172,7 @@ export function buildChatPrompt(brief: SourceBrief): string {
     "IMAGE ALT: the alt text",
     "BODY:",
     "the full article in the markdown subset above, blocks separated by a blank line",
+    SOCIAL_REPLY_FORMAT,
     "",
     "Here is the story to rewrite.",
     "",
@@ -174,7 +193,7 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
     response = await client.messages.parse({
       model: MODEL,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      system: [SYSTEM_PROMPT, SOCIAL_RULES].join("\n\n"),
       messages: [
         {
           role: "user",
@@ -211,6 +230,45 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
     sourceImage: brief.image,
     sourceOutlet: brief.outlet,
     sourceUrl: brief.sourceUrl,
+    social: draft.social,
     isStub: false,
   };
+}
+
+/** Social posts for a story that already exists (the editor's "Write social posts"). */
+export async function generateSocialKit(article: { title: string; dek: string; body: string; hub?: string }): Promise<SocialKit> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("No ANTHROPIC_API_KEY is set. Use Copy social prompt instead.");
+
+  const client = new Anthropic({ apiKey });
+  let response;
+  try {
+    response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 8000,
+      system: SOCIAL_RULES,
+      messages: [
+        {
+          role: "user",
+          content: [
+            "Write the social posts for this published Onibsport article.",
+            "",
+            `Headline: ${article.title}`,
+            `Standfirst: ${article.dek}`,
+            article.hub ? `Hub: ${article.hub}` : "",
+            "",
+            article.body,
+          ].join("\n"),
+        },
+      ],
+      output_config: { format: zodOutputFormat(SocialSchema()) },
+    });
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) throw new Error("The AI is rate-limited right now. Try again in a minute.");
+    if (err instanceof Anthropic.APIError) throw new Error(`The AI request failed (${err.status ?? "network"}): ${err.message}`);
+    throw err;
+  }
+  if (response.stop_reason === "refusal") throw new Error("The AI declined to write posts for this story.");
+  if (!response.parsed_output) throw new Error("The AI returned posts in the wrong format. Try again.");
+  return response.parsed_output;
 }

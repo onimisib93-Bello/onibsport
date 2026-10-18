@@ -8,7 +8,7 @@ export default async function NewArticlePage({ searchParams }: { searchParams: P
     <div>
       <h1 className="font-display text-5xl font-black leading-none text-ink">Write a story</h1>
       <div className="mt-6">
-        <ArticleForm categories={categories} openImport={params.import === "1"} />
+        <ArticleForm categories={categories} openImport={params.import === "1"} aiEnabled={!!process.env.ANTHROPIC_API_KEY} />
       </div>
     </div>
   );
