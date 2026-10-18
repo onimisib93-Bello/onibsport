@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { SourceItem, SAMPLE_SOURCE_QUEUE } from "@/lib/ai/queue";
 
@@ -65,6 +66,16 @@ function getLinkHref(link: unknown): string {
   return "";
 }
 
+/**
+ * Stable, unique id for one alert, derived from the story itself (its link,
+ * or feed + title when there is none). It must not depend on the item's
+ * position in the feed: the AI Desk looks stories up by this id when an
+ * editor clicks a button, after the feeds may have refreshed.
+ */
+function alertId(key: string): string {
+  return `alert-${createHash("sha256").update(key).digest("base64url").slice(0, 16)}`;
+}
+
 function getFeedUrls(): string[] {
   const raw = process.env.NEWS_ALERTS_RSS_URL;
   if (!raw) return [];
@@ -95,14 +106,14 @@ async function fetchOneFeed(feedUrl: string): Promise<SourceItem[]> {
     // If this alert had nothing in the last 48h, still surface its most recent hit rather than nothing.
     const items = recent.length > 0 ? recent : allItems.slice(0, 1);
 
-    return items.slice(0, PER_FEED_LIMIT).map((item: Record<string, unknown>, i: number): SourceItem => {
+    return items.slice(0, PER_FEED_LIMIT).map((item: Record<string, unknown>): SourceItem => {
       const title = stripHtml(textValue(item.title)) || "Untitled alert";
       const summarySource = item.summary ?? item.content ?? item.description ?? "";
       const summary = stripHtml(textValue(summarySource)) || title;
       const link = extractRealUrl(getLinkHref(item.link));
 
       return {
-        id: `alert-${i}-${Buffer.from(feedUrl + title).toString("base64url").slice(0, 12)}`,
+        id: alertId(link || `${feedUrl}\n${title}`),
         headline: title,
         sourceName: "Google Alerts",
         sourceUrl: link || undefined,
@@ -124,9 +135,11 @@ export async function fetchAlertsQueue(): Promise<SourceItem[]> {
 
   const seen = new Set<string>();
   const deduped = combined.filter((item) => {
+    // Same story in two alerts (same headline or same link): keep the first.
     const key = item.headline.toLowerCase();
-    if (seen.has(key)) return false;
+    if (seen.has(key) || seen.has(item.id)) return false;
     seen.add(key);
+    seen.add(item.id);
     return true;
   });
 
