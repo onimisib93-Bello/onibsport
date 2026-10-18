@@ -97,12 +97,18 @@ function buildStubDraft(source: SourceItem): GeneratedDraft {
   };
 }
 
-export async function generateDraft(source: SourceItem, internalLinks: InternalLink[] = []): Promise<GeneratedDraft> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return buildStubDraft(source);
-  }
+/** Everything the writer needs about one source story, ready to send to Claude. */
+export interface SourceBrief {
+  /** The user-turn text: source details, link list and the source material. */
+  text: string;
+  outlet: string;
+  sourceUrl?: string;
+  /** Share image found on the source page, if any. */
+  image?: string;
+}
 
+/** Reads the source page (full text, outlet, photo) and lays out the brief for the writer. */
+export async function prepareSourceBrief(source: SourceItem, internalLinks: InternalLink[] = []): Promise<SourceBrief> {
   const page = source.sourceUrl ? await fetchSourceArticle(source.sourceUrl) : null;
   const outlet = page?.outlet ?? source.sourceName;
   const sourceUrl = page?.url ?? source.sourceUrl;
@@ -114,6 +120,54 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
     ? internalLinks.map((l) => `- ${l.title}: ${l.url}`).join("\n")
     : "(none available — skip internal links)";
 
+  const text = [
+    `Source outlet: ${outlet}`,
+    `Source URL: ${sourceUrl ?? "(not available)"}`,
+    `Original headline: ${source.headline}`,
+    `Suggested hub (override it if the story clearly belongs elsewhere): ${source.categorySlug}`,
+    "",
+    "Onibsport pages you may link to:",
+    linkList,
+    "",
+    sourceMaterial,
+  ].join("\n");
+
+  return { text, outlet, sourceUrl, image: page?.image };
+}
+
+/**
+ * The same brief and rules as the API path, written as one message to paste
+ * into a Claude chat. The reply comes back as labelled fields that the
+ * editor's "Paste a draft from Claude" box reads (see chatDraft.ts).
+ */
+export function buildChatPrompt(brief: SourceBrief): string {
+  return [
+    SYSTEM_PROMPT,
+    "",
+    "How to reply",
+    "Reply with one plain-text code block (```text ... ```) and nothing outside it, laid out exactly like this:",
+    "",
+    "TITLE: the headline",
+    "STANDFIRST: the one-sentence standfirst / meta description",
+    `CATEGORY: one of ${CATEGORY_SLUGS.join(", ")}`,
+    "TAGS: tag one, tag two, tag three, tag four",
+    "IMAGE ALT: the alt text",
+    "BODY:",
+    "the full article in the markdown subset above, blocks separated by a blank line",
+    "",
+    "Here is the story to rewrite.",
+    "",
+    brief.text,
+  ].join("\n");
+}
+
+export async function generateDraft(source: SourceItem, internalLinks: InternalLink[] = []): Promise<GeneratedDraft> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return buildStubDraft(source);
+  }
+
+  const brief = await prepareSourceBrief(source, internalLinks);
   const client = new Anthropic({ apiKey });
   let response;
   try {
@@ -124,17 +178,7 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
       messages: [
         {
           role: "user",
-          content: [
-            `Source outlet: ${outlet}`,
-            `Source URL: ${sourceUrl ?? "(not available)"}`,
-            `Original headline: ${source.headline}`,
-            `Suggested hub (override it if the story clearly belongs elsewhere): ${source.categorySlug}`,
-            "",
-            "Onibsport pages you may link to:",
-            linkList,
-            "",
-            sourceMaterial,
-          ].join("\n"),
+          content: brief.text,
         },
       ],
       output_config: { format: zodOutputFormat(DraftSchema) },
@@ -164,9 +208,9 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
     tags: draft.tags.map((t) => t.trim()).filter(Boolean).join(", "),
     category: draft.category,
     imageAlt: draft.imageAlt.trim(),
-    sourceImage: page?.image,
-    sourceOutlet: outlet,
-    sourceUrl,
+    sourceImage: brief.image,
+    sourceOutlet: brief.outlet,
+    sourceUrl: brief.sourceUrl,
     isStub: false,
   };
 }

@@ -11,14 +11,18 @@ import {
   ImageSquare,
   Warning,
   UploadSimple,
+  ClipboardText,
+  CaretDown,
 } from "@phosphor-icons/react/dist/ssr";
 import { parseBlocks, plainText, readingMinutes, RichText } from "@/lib/richText";
 import NewsImage from "@/components/ui/NewsImage";
+import { clearHandoff, parseChatDraft, readHandoff } from "@/lib/ai/chatDraft";
 import { cn } from "@/lib/utils";
 
 interface CategoryOption {
   id: string;
   name: string;
+  slug?: string;
 }
 
 export interface ArticleFormValues {
@@ -72,7 +76,16 @@ function Counter({ value, ideal, max }: { value: number; ideal: [number, number]
   );
 }
 
-export default function ArticleForm({ categories, initial }: { categories: CategoryOption[]; initial?: ArticleFormValues }) {
+export default function ArticleForm({
+  categories,
+  initial,
+  openImport = false,
+}: {
+  categories: CategoryOption[];
+  initial?: ArticleFormValues;
+  /** Start with the "Paste a draft from Claude" panel open. */
+  openImport?: boolean;
+}) {
   const router = useRouter();
   const isEdit = !!initial?.id;
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +114,9 @@ export default function ArticleForm({ categories, initial }: { categories: Categ
   const [uploading, setUploading] = useState<{ image?: boolean; coverImage?: boolean; body?: boolean }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [preview, setPreview] = useState<"story" | "search" | "social">("story");
+  const [importOpen, setImportOpen] = useState(openImport);
+  const [importText, setImportText] = useState("");
+  const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -182,6 +198,41 @@ export default function ArticleForm({ categories, initial }: { categories: Categ
     }
   }
 
+  /** Fills the form from a Claude chat reply, plus the source details saved when the prompt was copied. */
+  function importFromChat() {
+    const parsed = parseChatDraft(importText);
+    if ("error" in parsed) {
+      setImportResult({ ok: false, message: parsed.error });
+      return;
+    }
+    const handoff = readHandoff();
+    const wanted = parsed.category ?? handoff?.categorySlug;
+    const category = categories.find((c) => wanted && (c.slug === wanted || slugify(c.name) === wanted));
+    setValues((v) => ({
+      ...v,
+      title: parsed.title,
+      slug: slugTouched ? v.slug : slugify(parsed.title),
+      dek: parsed.dek || v.dek,
+      body: parsed.body,
+      tags: parsed.tags || v.tags,
+      imageAlt: parsed.imageAlt || v.imageAlt,
+      categoryId: category?.id ?? v.categoryId,
+      author: v.author || "Onibsport Desk",
+      source: handoff?.outlet ?? v.source,
+      image: handoff?.image ?? v.image,
+      coverImage: handoff?.image ?? v.coverImage,
+    }));
+    clearHandoff();
+    setImportText("");
+    setImportOpen(false);
+    setImportResult({
+      ok: true,
+      message: handoff
+        ? `Filled in from Claude, with the source details from ${handoff.outlet}. Read it through, check the photo, then save.`
+        : "Filled in from Claude. Add the source outlet and a photo, read it through, then save.",
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -232,6 +283,58 @@ export default function ArticleForm({ categories, initial }: { categories: Categ
   return (
     <form onSubmit={handleSubmit} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
       <div className="space-y-6">
+        <section className="overflow-hidden rounded-2xl bg-night text-white">
+          <button
+            type="button"
+            onClick={() => setImportOpen((o) => !o)}
+            aria-expanded={importOpen}
+            aria-controls="chat-import"
+            className="flex w-full cursor-pointer items-center gap-3 px-5 py-4 text-left"
+          >
+            <ClipboardText size={22} weight="bold" className="shrink-0 text-orange" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-2xl font-black leading-tight">Paste a draft from Claude</span>
+              <span className="block text-sm text-white/65">Fills in the headline, standfirst, story, tags, hub and source in one go.</span>
+            </span>
+            <CaretDown size={18} weight="bold" className={cn("shrink-0 transition-transform", importOpen && "rotate-180")} aria-hidden="true" />
+          </button>
+          {importOpen && (
+            <div id="chat-import" className="space-y-3 border-t border-white/10 px-5 pb-5 pt-4">
+              <label htmlFor="chat-import-text" className="block text-sm text-white/75">
+                Paste Claude&apos;s whole reply. Use the copy button on its code block so the formatting comes through.
+              </label>
+              <textarea
+                id="chat-import-text"
+                rows={8}
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder={"TITLE: …\nSTANDFIRST: …\nCATEGORY: …\nTAGS: …\nIMAGE ALT: …\nBODY:\n…"}
+                className="w-full rounded-xl border border-white/15 bg-white/5 p-3 font-mono text-[13px] text-white placeholder:text-white/35 focus:border-orange focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={importFromChat}
+                disabled={!importText.trim()}
+                className="cursor-pointer rounded-full bg-orange px-5 py-2.5 text-sm font-bold text-ink transition-colors hover:bg-gold disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Fill in the story
+              </button>
+            </div>
+          )}
+        </section>
+
+        {importResult && (
+          <p
+            role={importResult.ok ? "status" : "alert"}
+            className={cn(
+              "rounded-2xl p-4 text-sm font-semibold",
+              importResult.ok ? "bg-[#1f9d5c]/10 text-[#1f7a4a]" : "bg-[#fde8e8] text-[#b42318]"
+            )}
+          >
+            {importResult.message}
+          </p>
+        )}
+
         {externalImage && (
           <div className="flex gap-3 rounded-2xl border border-orange/40 bg-orange/10 p-4 text-sm text-ink">
             <Warning size={22} weight="fill" className="shrink-0 text-orange-deep" aria-hidden="true" />

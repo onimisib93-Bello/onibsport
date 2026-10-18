@@ -1,6 +1,7 @@
 import { ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { getSourceQueue } from "@/lib/ai/alerts";
 import DraftButton from "@/components/admin/DraftButton";
+import CopyPromptButton from "@/components/admin/CopyPromptButton";
 
 const STEPS = [
   { title: "Read the source", text: "Fetches the full story from the link, plus its photo and publisher name." },
@@ -30,8 +31,10 @@ export default async function AiDeskPage() {
 
       {stubMode && (
         <div className="mt-6 rounded-2xl border border-orange/40 bg-orange/10 p-4 text-sm text-ink">
-          <span className="font-bold text-orange-deep">Stub mode:</span> no <code className="font-mono">ANTHROPIC_API_KEY</code> is set, so drafts are placeholders
-          rather than real rewrites. Add the key to your environment variables (Vercel: Settings, Environment Variables) and redeploy to turn on real drafting.
+          <span className="font-bold text-orange-deep">No API key yet, so use Claude chat for free.</span> Click{" "}
+          <span className="font-semibold">Copy rewrite prompt</span> on a story, paste it into a Claude chat, then paste Claude&apos;s reply into the editor
+          and it fills itself in. To make it one click instead, add <code className="font-mono">ANTHROPIC_API_KEY</code> in Vercel (Settings, Environment
+          Variables) and redeploy.
         </div>
       )}
 
@@ -54,7 +57,7 @@ export default async function AiDeskPage() {
       <h2 className="mt-10 font-display text-3xl font-black text-ink">Incoming ({items.length})</h2>
       <ul className="mt-4 space-y-3">
         {items.map((item) => (
-          <li key={item.id} className="flex flex-col gap-4 rounded-2xl bg-white p-4 ring-1 ring-line sm:flex-row sm:items-center sm:justify-between">
+          <li key={item.id} className="grid gap-4 rounded-2xl bg-white p-4 ring-1 ring-line md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
             <div className="min-w-0">
               <p className="text-xs font-bold text-muted">{item.sourceName}</p>
               <p className="mt-0.5 font-display text-xl font-extrabold leading-tight text-ink">{item.headline}</p>
@@ -71,8 +74,18 @@ export default async function AiDeskPage() {
                 </a>
               )}
             </div>
-            <div className="shrink-0">
-              <DraftButton itemId={item.id} />
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              {stubMode ? (
+                <>
+                  <CopyPromptButton itemId={item.id} primary />
+                  <DraftButton itemId={item.id} label="Save as a placeholder draft" subtle />
+                </>
+              ) : (
+                <>
+                  <DraftButton itemId={item.id} />
+                  <CopyPromptButton itemId={item.id} />
+                </>
+              )}
             </div>
           </li>
         ))}

@@ -7,7 +7,7 @@ import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 // A full rewrite takes a minute or so; these tell the editor what's happening meanwhile.
 const STAGES = ["Reading the source…", "Writing the story…", "Adding links and SEO…", "Almost there…"];
 
-export default function DraftButton({ itemId }: { itemId: string }) {
+export default function DraftButton({ itemId, label = "Draft with AI", subtle = false }: { itemId: string; label?: string; subtle?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
@@ -50,10 +50,14 @@ export default function DraftButton({ itemId }: { itemId: string }) {
         onClick={handleDraft}
         disabled={loading}
         aria-live="polite"
-        className="flex min-w-44 cursor-pointer items-center justify-center gap-2 rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo disabled:cursor-wait disabled:opacity-80"
+        className={
+          subtle
+            ? "flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-paper hover:text-ink disabled:cursor-wait"
+            : "flex min-w-44 cursor-pointer items-center justify-center gap-2 rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo disabled:cursor-wait disabled:opacity-80"
+        }
       >
         <Sparkle size={16} weight="fill" className={loading ? "animate-spin text-orange" : "text-orange"} aria-hidden="true" />
-        {loading ? STAGES[stage] : "Draft with AI"}
+        {loading ? STAGES[stage] : label}
       </button>
       {error && (
         <p role="alert" className="mt-1.5 max-w-xs text-xs font-semibold text-[#b42318] sm:text-right">
