@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { saveSocialKit } from "@/lib/ai/social";
 
 // A full rewrite takes a minute or so; these tell the editor what's happening meanwhile.
 const STAGES = ["Reading the source…", "Writing the story…", "Adding links and SEO…", "Almost there…"];
@@ -34,6 +35,8 @@ export default function DraftButton({ itemId, label = "Draft with AI", subtle = 
         setError(data.error ?? "Could not generate a draft. Try again.");
         return;
       }
+      // The draft's social posts wait in the editor's Social posts panel.
+      if (data.social) saveSocialKit(data.article.slug, data.social);
       router.push(`/admin/articles/${data.article.id}`);
       router.refresh();
     } catch {

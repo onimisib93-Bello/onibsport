@@ -39,6 +39,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
       <div className="mt-6">
         <ArticleForm
           categories={categories}
+          aiEnabled={!!process.env.ANTHROPIC_API_KEY}
           initial={{
             id: article.id,
             title: article.title,

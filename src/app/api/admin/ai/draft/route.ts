@@ -67,5 +67,5 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ article, isStub: draft.isStub });
+  return NextResponse.json({ article, isStub: draft.isStub, social: draft.social ?? null });
 }

@@ -1,3 +1,5 @@
+import { parseSocialSection, splitSocialSection, type SocialKit } from "@/lib/ai/social";
+
 /**
  * Client-side half of the free "rewrite in Claude chat" workflow: the AI Desk
  * copies a prompt (see buildChatPrompt in draft.ts) and remembers which story
@@ -20,6 +22,8 @@ export interface ChatDraft {
   tags: string;
   imageAlt: string;
   category?: string;
+  /** Posts from the "=== SOCIAL ===" section, when the reply has one. */
+  social?: SocialKit;
 }
 
 const HANDOFF_KEY = "onibsport-chat-handoff";
@@ -76,12 +80,16 @@ export function parseChatDraft(input: string): ChatDraft | { error: string } {
   if (fenced) text = fenced[1];
 
   const fields: Partial<Record<Label, string>> = {};
+  let socialText: string | null = null;
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const found = labelOf(lines[i]);
     if (!found) continue;
     if (found.label === "BODY") {
-      fields.BODY = [found.rest, ...lines.slice(i + 1)].join("\n").trim();
+      // Everything after BODY: is the article, up to the optional social section.
+      const [body, social] = splitSocialSection([found.rest, ...lines.slice(i + 1)].join("\n"));
+      fields.BODY = body.trim();
+      socialText = social;
       break;
     }
     fields[found.label] = found.rest.trim();
@@ -105,5 +113,6 @@ export function parseChatDraft(input: string): ChatDraft | { error: string } {
       .join(", "),
     imageAlt: fields["IMAGE ALT"] ?? "",
     category: fields.CATEGORY?.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z-]/g, "") || undefined,
+    social: socialText ? parseSocialSection(socialText) : undefined,
   };
 }
