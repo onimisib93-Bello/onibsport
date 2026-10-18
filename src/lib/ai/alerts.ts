@@ -16,8 +16,28 @@ import { SourceItem, SAMPLE_SOURCE_QUEUE } from "@/lib/ai/queue";
  */
 
 const PER_FEED_LIMIT = 5;
-const TOTAL_LIMIT = 20;
+/**
+ * Safety cap on the whole queue. Feeds are read in order and each gives up
+ * to PER_FEED_LIMIT stories, so this must stay well above feeds × 5 or the
+ * later alerts never appear (it used to be 20, which hid all but 4 alerts).
+ */
+const TOTAL_LIMIT = 150;
 const MAX_AGE_HOURS = 48;
+
+/** Best-guess league hub for an alert keyword; the AI Desk can still override it. */
+const HUB_BY_KEYWORD: [RegExp, string][] = [
+  [/champions league|\bucl\b/i, "champions-league"],
+  [/premier league|arsenal|chelsea|manchester|man utd|man city|liverpool|tottenham|newcastle|aston villa/i, "premier-league"],
+  [/la ?liga|barcelona|real madrid|atletico/i, "la-liga"],
+  [/serie a|juventus|inter milan|ac milan|napoli|roma\b/i, "serie-a"],
+  [/bundesliga|bayern|dortmund|leverkusen/i, "bundesliga"],
+  [/\bnpfl\b|enyimba|rivers united|remo stars|kano pillars/i, "npfl"],
+  [/super eagles|super falcons|nigeria|osimhen|lookman/i, "nigeria-football"],
+];
+
+function hubForKeyword(keyword: string): string {
+  return HUB_BY_KEYWORD.find(([pattern]) => pattern.test(keyword))?.[1] ?? "transfers";
+}
 
 /**
  * Google's <title type="html"> and <content type="html"> elements have an
@@ -94,6 +114,11 @@ async function fetchOneFeed(feedUrl: string): Promise<SourceItem[]> {
     const parser = new XMLParser({ ignoreAttributes: false });
     const data = parser.parse(xml);
 
+    // Google names each feed "Google Alert - <keyword>".
+    const feedTitle = stripHtml(textValue(data?.feed?.title ?? data?.rss?.channel?.title));
+    const keyword = feedTitle.replace(/^google alerts?\s*[-–:]\s*/i, "").trim() || "Alerts";
+    const categorySlug = hubForKeyword(keyword);
+
     const rawItems = data?.feed?.entry ?? data?.rss?.channel?.item ?? [];
     const allItems = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
 
@@ -111,14 +136,17 @@ async function fetchOneFeed(feedUrl: string): Promise<SourceItem[]> {
       const summarySource = item.summary ?? item.content ?? item.description ?? "";
       const summary = stripHtml(textValue(summarySource)) || title;
       const link = extractRealUrl(getLinkHref(item.link));
+      const published = Date.parse(textValue(item.published ?? item.pubDate ?? item.updated));
 
       return {
         id: alertId(link || `${feedUrl}\n${title}`),
         headline: title,
-        sourceName: "Google Alerts",
+        sourceName: `Google Alerts: ${keyword}`,
         sourceUrl: link || undefined,
         rawSummary: summary,
-        categorySlug: "transfers",
+        categorySlug,
+        keyword,
+        publishedAt: Number.isNaN(published) ? undefined : new Date(published).toISOString(),
       };
     });
   } catch {
