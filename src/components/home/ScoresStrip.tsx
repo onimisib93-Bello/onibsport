@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Fixture } from "@/lib/types";
 import { getCategory } from "@/lib/data/categories";
@@ -7,6 +9,8 @@ import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
 import SwipeRow from "@/components/ui/SwipeRow";
 import { cn } from "@/lib/utils";
+import type { Scoreboard } from "@/lib/live/footballData";
+import { useLiveScores } from "@/lib/live/useLiveScores";
 
 function Tile({ f, today }: { f: Fixture; today: string }) {
   const otherDay = formatDay(f.kickoff, { day: "2-digit", month: "2-digit" }) !== formatDay(today, { day: "2-digit", month: "2-digit" });
@@ -64,8 +68,12 @@ function Tile({ f, today }: { f: Fixture; today: string }) {
   );
 }
 
-/** Today's matches as a swipeable scoreboard strip. */
-export default function ScoresStrip({ fixtures, dateLabelIso, quietDay = false }: { fixtures: Fixture[]; dateLabelIso: string; quietDay?: boolean }) {
+/** Today's matches as a swipeable scoreboard strip, refreshed live in the browser. */
+export default function ScoresStrip({ initial }: { initial: Scoreboard }) {
+  const board = useLiveScores(initial);
+  const fixtures = board.strip;
+  const dateLabelIso = `${board.today}T12:00:00Z`;
+  const quietDay = board.quietDay;
   if (fixtures.length === 0) return null;
   const live = fixtures.filter((f) => f.status === "live").length;
 
