@@ -10,6 +10,7 @@ import LeagueDataTabs from "@/components/LeagueDataTabs";
 import StandingsTable from "@/components/StandingsTable";
 import TrendingSidebar from "@/components/TrendingSidebar";
 import AdSlot from "@/components/AdSlot";
+import AutoRefresh from "@/components/AutoRefresh";
 import HubIntro from "@/components/league/HubIntro";
 import HubPortal from "@/components/league/HubPortal";
 import TransferTimeline from "@/components/league/TransferTimeline";
@@ -89,6 +90,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {hasMatches && <AutoRefresh />}
 
       {portalWord ? (
         <HubPortal word={portalWord} image={lead?.coverImage || lead?.image} deep={theme.deep} tint={theme.tint} eyebrow={`Onibsport ${category.name} desk`}>

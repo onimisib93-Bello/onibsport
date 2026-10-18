@@ -17,13 +17,7 @@ import {
   getArticlesByCategory,
   getFeaturedVideoArticle,
 } from "@/lib/data/db-articles";
-import {
-  getFixturesForDate,
-  getFixturesForLeague,
-  getStandingsForLeague,
-  getTickerFixtures,
-  todayIso,
-} from "@/lib/live/footballData";
+import { getFixturesForLeague, getScoreboard, getStandingsForLeague } from "@/lib/live/footballData";
 import { videos } from "@/lib/data/videos";
 import { CategorySlug } from "@/lib/types";
 
@@ -32,8 +26,7 @@ export const revalidate = 60;
 const DESK_LEAGUES: CategorySlug[] = ["premier-league", "la-liga", "serie-a", "bundesliga", "champions-league", "npfl"];
 
 export default async function Home() {
-  const today = todayIso();
-  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle, todays, ticker, naijaFixtures, npflFixtures, deskArticles, deskTables] =
+  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle, scoreboard, naijaFixtures, npflFixtures, deskArticles, deskTables] =
     await Promise.all([
       getLatestArticles(30),
       getFeaturedArticles(10),
@@ -41,8 +34,7 @@ export default async function Home() {
       getArticlesByCategory("npfl", 6),
       getArticlesByCategory("transfers", 10),
       getFeaturedVideoArticle(),
-      getFixturesForDate(today),
-      getTickerFixtures(16),
+      getScoreboard(),
       getFixturesForLeague("nigeria-football"),
       getFixturesForLeague("npfl"),
       Promise.all(DESK_LEAGUES.map((slug) => getArticlesByCategory(slug, 5))),
@@ -61,10 +53,6 @@ export default async function Home() {
   const trending = latest.slice(0, 6);
   const editorsPicks = heroPool.filter((a) => !heroSlugs.has(a.slug)).slice(0, 8);
   const moreStories = river.slice(7, 15);
-
-  // Today's matches; on a quiet day, pad with the ticker's recent results and upcoming kick-offs.
-  const seen = new Set(todays.map((f) => f.id));
-  const stripFixtures = todays.length >= 6 ? todays : [...todays, ...ticker.filter((f) => !seen.has(f.id))].slice(0, 14);
 
   const nigeriaArticles = [...nigeriaFootball, ...npfl].sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt)).slice(0, 5);
   const naijaUpcoming = [...naijaFixtures, ...npflFixtures]
@@ -85,7 +73,7 @@ export default async function Home() {
         </div>
       )}
 
-      <ScoresStrip fixtures={stripFixtures} dateLabelIso={`${today}T12:00:00Z`} quietDay={todays.length === 0} />
+      <ScoresStrip initial={scoreboard} />
 
       <div className="mx-auto max-w-[1400px] px-4 pt-10 sm:px-6">
         <AdSlot variant="leaderboard" />

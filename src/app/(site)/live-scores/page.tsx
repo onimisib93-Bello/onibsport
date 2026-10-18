@@ -3,6 +3,7 @@ import { categories } from "@/lib/data/categories";
 import { SCORE_LEAGUES, getFixturesForDate, getFixturesForRange, parseDateParam, todayIso } from "@/lib/live/footballData";
 import LiveScoresView, { type ScoresView } from "@/components/LiveScoresView";
 import AdSlot from "@/components/AdSlot";
+import AutoRefresh from "@/components/AutoRefresh";
 
 const description =
   "Live football scores, results and fixtures for any date across the Premier League, La Liga, Serie A, Bundesliga, Champions League and the NPFL.";
@@ -69,6 +70,8 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
           </p>
         </div>
       </section>
+      {/* Keep today's scores and the results/fixtures views current while the page is open. */}
+      {(view !== "date" || date === today) && <AutoRefresh />}
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <LiveScoresView fixtures={fixtures} categories={scoreCategories} date={date} today={today} league={league} view={view} />
         <AdSlot variant="leaderboard" className="mt-12" />

@@ -77,14 +77,23 @@ interface FootballDataStandingRow {
   form?: string | null;
 }
 
-async function fetchFromFootballData<T>(path: string): Promise<T | null> {
+/**
+ * Sample fixtures are for local development and demos only. Once a
+ * football-data.org key is set, a failed request (the free plan allows 10 a
+ * minute) must show nothing rather than made-up scores that look live.
+ */
+function sampleFixtures(match: (f: Fixture) => boolean): Fixture[] {
+  return process.env.FOOTBALL_DATA_API_KEY ? [] : mockFixtures.filter(match);
+}
+
+async function fetchFromFootballData<T>(path: string, revalidate = 60): Promise<T | null> {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) return null;
 
   try {
     const res = await fetch(`https://api.football-data.org/v4${path}`, {
       headers: { "X-Auth-Token": apiKey },
-      next: { revalidate: 60 },
+      next: { revalidate },
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
@@ -135,7 +144,7 @@ function toFixture(m: FootballDataMatch, slug: CategorySlug): Fixture {
  */
 export async function getFixturesForLeague(slug: CategorySlug): Promise<Fixture[]> {
   const code = COMPETITION_CODES[slug];
-  const fallback = mockFixtures.filter((f) => f.league === slug);
+  const fallback = sampleFixtures((f) => f.league === slug);
   if (!code) return fallback;
 
   const dateFrom = isoDate(-14);
@@ -165,16 +174,18 @@ export async function getFixturesForRange(dateFrom: string, dateTo: string): Pro
   const end = new Date(`${dateTo}T00:00:00Z`);
   end.setUTCDate(end.getUTCDate() + 1);
   const data = await fetchFromFootballData<{ matches: FootballDataMatch[] }>(
-    `/matches?competitions=${codes}&dateFrom=${dateFrom}&dateTo=${end.toISOString().slice(0, 10)}`
+    `/matches?competitions=${codes}&dateFrom=${dateFrom}&dateTo=${end.toISOString().slice(0, 10)}`,
+    // Live scores move fast; this one request covers every competition, so refresh it more often.
+    30
   );
 
   const live: Fixture[] = data?.matches
     ? data.matches
         .filter((m) => inRange(m.utcDate) && m.competition?.code && SLUG_BY_CODE[m.competition.code])
         .map((m) => toFixture(m, SLUG_BY_CODE[m.competition!.code!]))
-    : mockFixtures.filter((f) => COMPETITION_CODES[f.league] && inRange(f.kickoff));
+    : sampleFixtures((f) => !!COMPETITION_CODES[f.league] && inRange(f.kickoff));
 
-  const local = mockFixtures.filter((f) => !COMPETITION_CODES[f.league] && inRange(f.kickoff));
+  const local = sampleFixtures((f) => !COMPETITION_CODES[f.league] && inRange(f.kickoff));
   return [...live, ...local].sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
 }
 
@@ -183,7 +194,7 @@ export async function getAllLiveFixtures(): Promise<Fixture[]> {
   const results = await Promise.all(supportedSlugs.map(getFixturesForLeague));
   const live = results.flat().filter((f) => f.status === "live");
 
-  const mockLive = mockFixtures.filter((f) => f.status === "live" && !COMPETITION_CODES[f.league]);
+  const mockLive = sampleFixtures((f) => f.status === "live" && !COMPETITION_CODES[f.league]);
   return [...live, ...mockLive];
 }
 
@@ -207,6 +218,31 @@ export async function getTickerFixtures(limit = 14): Promise<Fixture[]> {
   return mixed.slice(0, limit);
 }
 
+export interface Scoreboard {
+  /** YYYY-MM-DD (UTC) the board was built for. */
+  today: string;
+  /** For the LED ticker in the header. */
+  ticker: Fixture[];
+  /** For the homepage match centre strip. */
+  strip: Fixture[];
+  /** True when nothing is scheduled today, so the strip shows recent results and next kick-offs. */
+  quietDay: boolean;
+  generatedAt: string;
+}
+
+/**
+ * Everything the ticker and the homepage strip show, from one cached request.
+ * Served to the browser by /api/scores/live so open pages stay current.
+ */
+export async function getScoreboard(): Promise<Scoreboard> {
+  const today = todayIso();
+  const [todays, ticker] = await Promise.all([getFixturesForDate(today), getTickerFixtures(16)]);
+  // Today's matches; on a quiet day, pad with recent results and upcoming kick-offs.
+  const seen = new Set(todays.map((f) => f.id));
+  const strip = todays.length >= 6 ? todays : [...todays, ...ticker.filter((f) => !seen.has(f.id))].slice(0, 14);
+  return { today, ticker: ticker.slice(0, 14), strip, quietDay: todays.length === 0, generatedAt: new Date().toISOString() };
+}
+
 export async function getStandingsForLeague(slug: CategorySlug): Promise<StandingRow[] | undefined> {
   const code = COMPETITION_CODES[slug];
   const fallback = mockStandings[slug];
@@ -216,7 +252,8 @@ export async function getStandingsForLeague(slug: CategorySlug): Promise<Standin
     `/competitions/${code}/standings`
   );
   const table = data?.standings?.find((s) => s.type === "TOTAL")?.table;
-  if (!table) return fallback;
+  // Same rule as fixtures: no made-up table when the real request failed.
+  if (!table) return process.env.FOOTBALL_DATA_API_KEY ? undefined : fallback;
 
   return table.map((row) => ({
     team: row.team?.shortName ?? row.team?.name ?? "Unknown",
