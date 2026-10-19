@@ -19,6 +19,7 @@ import NewsImage from "@/components/ui/NewsImage";
 import { clearHandoff, parseChatDraft, readHandoff } from "@/lib/ai/chatDraft";
 import { readSocialKit, saveSocialKit, type SocialKit } from "@/lib/ai/social";
 import SocialPostsPanel from "@/components/admin/SocialPostsPanel";
+import SocialCardPreview from "@/components/admin/SocialCardPreview";
 import { cn } from "@/lib/utils";
 
 interface CategoryOption {
@@ -741,18 +742,7 @@ export default function ArticleForm({
                 <p className="mt-1 line-clamp-2 text-sm text-[#4d5156]">{values.dek || "Your standfirst appears here as the description."}</p>
               </div>
             )}
-            {preview === "social" && (
-              <div className="overflow-hidden rounded-xl ring-1 ring-line">
-                <div className="relative aspect-[1200/630] bg-line">
-                  {(values.coverImage || values.image) && <NewsImage src={values.coverImage || values.image} alt="" fill sizes="440px" className="object-cover" />}
-                </div>
-                <div className="bg-paper p-3">
-                  <p className="text-xs uppercase text-muted">onibsport.com</p>
-                  <p className="mt-0.5 line-clamp-2 font-semibold text-ink">{values.title || "Your headline"}</p>
-                  <p className="mt-0.5 line-clamp-1 text-sm text-muted">{values.dek}</p>
-                </div>
-              </div>
-            )}
+            {preview === "social" && <SocialCardPreview image={values.coverImage || values.image} title={values.title} dek={values.dek} />}
           </div>
         </section>
       </div>
