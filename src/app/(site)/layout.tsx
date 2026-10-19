@@ -6,6 +6,7 @@ import LiveTicker from "@/components/LiveTicker";
 import Footer from "@/components/Footer";
 import NewsletterModal from "@/components/NewsletterModal";
 import BreakingToast from "@/components/BreakingToast";
+import Analytics from "@/components/Analytics";
 import { getFirstBreakingArticle } from "@/lib/data/db-articles";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
@@ -84,6 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Footer />
         <BreakingToast article={breaking} />
         <NewsletterModal />
+        <Analytics />
       </body>
     </html>
   );
