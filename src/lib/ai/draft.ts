@@ -34,12 +34,12 @@ const DraftSchema = z.object({
 /** One field per network, written to the social rules (see social.ts). */
 export function SocialSchema() {
   return z.object({
-    facebook: z.string().describe("Facebook post, with {{LINK}} where the article link goes."),
-    x: z.string().describe("X post under 250 characters including {{LINK}}."),
-    instagram: z.string().describe("Instagram caption with hashtags and an IMAGE TEXT line; no {{LINK}}."),
-    tiktok: z.string().describe("TikTok/Reels script: HOOK, SCRIPT, ON-SCREEN TEXT, CAPTION; no {{LINK}}."),
-    whatsapp: z.string().describe("WhatsApp channel post ending with Read more: {{LINK}}."),
-    threads: z.string().describe("Threads post under 450 characters ending with {{LINK}}."),
+    facebook: z.string().describe("Facebook teaser that holds back the key fact, with {{LINK}} where the article link goes."),
+    x: z.string().describe("X teaser under 250 characters including {{LINK}}; does not give the answer away."),
+    instagram: z.string().describe("Instagram teaser caption with non-spoiling hashtags and an IMAGE TEXT line; no {{LINK}}."),
+    tiktok: z.string().describe("TikTok/Reels teaser script that cuts before the reveal: HOOK, SCRIPT, ON-SCREEN TEXT, CAPTION; no {{LINK}}."),
+    whatsapp: z.string().describe("WhatsApp channel teaser ending with Find out: {{LINK}}."),
+    threads: z.string().describe("Threads teaser under 450 characters ending with {{LINK}}."),
   });
 }
 
