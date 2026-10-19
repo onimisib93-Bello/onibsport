@@ -12,6 +12,7 @@ import ShareBar from "@/components/ShareBar";
 import ReadMoreCallout from "@/components/ReadMoreCallout";
 import AdSlot from "@/components/AdSlot";
 import NewsImage from "@/components/ui/NewsImage";
+import FullImage from "@/components/ui/FullImage";
 import ReadingProgress from "@/components/article/ReadingProgress";
 import ArticleVideo from "@/components/article/ArticleVideo";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
@@ -153,9 +154,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <ArticleVideo src={article.featuredVideoUrl} title={article.title} poster={article.coverImage || article.image} />
           ) : (
             <figure>
-              <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-line">
-                <NewsImage src={article.coverImage || article.image} alt={article.imageAlt} fill priority sizes="(min-width: 1100px) 1100px, 100vw" className="object-cover" />
-              </div>
+              <FullImage
+                src={article.coverImage || article.image}
+                alt={article.imageAlt}
+                priority
+                sizes="(min-width: 1100px) 1100px, 100vw"
+                className="rounded-3xl"
+              />
               <figcaption className="mt-2 text-sm text-muted">{article.imageAlt}</figcaption>
             </figure>
           )}

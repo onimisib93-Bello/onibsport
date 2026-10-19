@@ -29,6 +29,8 @@ function hostOf(url: string | null): string | null {
 export async function POST(request: NextRequest) {
   const ua = request.headers.get("user-agent") ?? "";
   if (isBot(ua) || request.cookies.has(SESSION_COOKIE)) return ok();
+  // Local development shares the production database; never count those visits.
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(request.nextUrl.hostname)) return ok();
 
   const body = await request.json().catch(() => null);
   const id = text(body?.id, 64);
