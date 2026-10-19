@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import NewsImage from "@/components/ui/NewsImage";
+import FullImage from "@/components/ui/FullImage";
 
 /**
  * Article bodies are stored as plain text blocks separated by blank lines
@@ -150,9 +150,7 @@ export function RenderBlock({ block }: { block: Block }) {
     case "image":
       return (
         <figure>
-          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-line">
-            <NewsImage src={block.src} alt={block.alt} fill sizes="(min-width: 768px) 720px, 100vw" className="object-cover" />
-          </div>
+          <FullImage src={block.src} alt={block.alt} sizes="(min-width: 768px) 720px, 100vw" className="rounded-xl" />
           {(block.caption || block.alt) && <figcaption>{block.caption || block.alt}</figcaption>}
         </figure>
       );
