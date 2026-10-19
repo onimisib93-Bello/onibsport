@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ensureCategories } from "@/lib/data/ensureCategories";
 import { prisma } from "@/lib/prisma";
 import { getSourceQueue } from "@/lib/ai/alerts";
 import { generateDraft } from "@/lib/ai/draft";
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
+  await ensureCategories();
   // The model picks the hub; fall back to the feed's suggestion if that row is missing.
   const category =
     (await prisma.category.findUnique({ where: { slug: draft.category } })) ??

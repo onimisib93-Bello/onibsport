@@ -24,7 +24,10 @@ const PER_FEED_LIMIT = 5;
 const TOTAL_LIMIT = 150;
 const MAX_AGE_HOURS = 48;
 
-/** Best-guess league hub for an alert keyword; the AI Desk can still override it. */
+/**
+ * Best-guess hub for an alert keyword; the AI Desk can still override it per
+ * story. General keywords ("Football news", players, managers) go to World Football.
+ */
 const HUB_BY_KEYWORD: [RegExp, string][] = [
   [/champions league|\bucl\b/i, "champions-league"],
   [/premier league|arsenal|chelsea|manchester|man utd|man city|liverpool|tottenham|newcastle|aston villa/i, "premier-league"],
@@ -33,10 +36,11 @@ const HUB_BY_KEYWORD: [RegExp, string][] = [
   [/bundesliga|bayern|dortmund|leverkusen/i, "bundesliga"],
   [/\bnpfl\b|enyimba|rivers united|remo stars|kano pillars/i, "npfl"],
   [/super eagles|super falcons|nigeria|osimhen|lookman/i, "nigeria-football"],
+  [/transfer|signing/i, "transfers"],
 ];
 
 function hubForKeyword(keyword: string): string {
-  return HUB_BY_KEYWORD.find(([pattern]) => pattern.test(keyword))?.[1] ?? "transfers";
+  return HUB_BY_KEYWORD.find(([pattern]) => pattern.test(keyword))?.[1] ?? "world-football";
 }
 
 /**

@@ -1,7 +1,9 @@
+import { ensureCategories } from "@/lib/data/ensureCategories";
 import { prisma } from "@/lib/prisma";
 import ArticleForm from "@/components/admin/ArticleForm";
 
 export default async function NewArticlePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await ensureCategories();
   const [categories, params] = await Promise.all([prisma.category.findMany({ orderBy: { name: "asc" } }), searchParams]);
 
   return (
