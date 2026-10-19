@@ -93,6 +93,15 @@ export const leagueThemes: Record<CategorySlug, LeagueTheme> = {
     blurb: "Done deals, medicals and the rumours worth your attention.",
     hasTable: false,
   },
+  "world-football": {
+    deep: "#06324a",
+    tint: "#3fd0f5",
+    onTint: "#03161f",
+    crest: "WF",
+    region: "Worldwide",
+    blurb: "Everything beyond the big leagues: global stars, other leagues and the stories the whole football world is talking about.",
+    hasTable: false,
+  },
 };
 
 export function leagueTheme(slug: string): LeagueTheme {

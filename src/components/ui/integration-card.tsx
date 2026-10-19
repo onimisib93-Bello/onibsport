@@ -27,6 +27,7 @@ const NODES: OrbitNode[] = [
   { slug: "premier-league", x: 110, y: 90, path: "M 270 205 V 105 Q 270 90 255 90 H 110" },
   { slug: "la-liga", x: 360, y: 60, path: "M 294 205 V 75 Q 294 60 309 60 H 360" },
   { slug: "transfers", x: 490, y: 115, path: "M 314 195 V 130 Q 314 115 329 115 H 490" },
+  { slug: "world-football", x: 190, y: 40, path: "M 258 195 V 55 Q 258 40 243 40 H 190" },
   { slug: "serie-a", x: 120, y: 205, path: "M 250 205 H 120" },
   { slug: "bundesliga", x: 470, y: 225, path: "M 314 225 H 470" },
   { slug: "npfl", x: 110, y: 335, path: "M 250 215 V 320 Q 250 335 235 335 H 110" },

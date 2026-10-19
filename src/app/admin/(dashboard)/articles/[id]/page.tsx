@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ensureCategories } from "@/lib/data/ensureCategories";
 import { prisma } from "@/lib/prisma";
 import ArticleForm from "@/components/admin/ArticleForm";
 import StatusBadge from "@/components/admin/StatusBadge";
@@ -7,6 +8,7 @@ import { PublishButton } from "@/components/admin/ArticleActions";
 
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await ensureCategories();
   const [article, categories] = await Promise.all([
     prisma.article.findUnique({ where: { id } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),

@@ -18,6 +18,7 @@ const CATEGORY_SLUGS = [
   "nigeria-football",
   "npfl",
   "transfers",
+  "world-football",
 ] as const satisfies readonly CategorySlug[];
 
 /** What the model must return — validated by the API against this schema. */
@@ -93,7 +94,7 @@ Do not use tables, images, HTML, or code blocks.
 Also return
 - dek: one sentence under 160 characters that works as the meta description.
 - tags: 4-6 specific tags (club names, players, competition, and a topic such as "Transfers").
-- category: the single best Onibsport hub for the story.
+- category: the single best Onibsport hub for the story. Use a league hub when the story is mainly about that competition or one of its clubs, transfers for transfer news (signings, bids, contracts, exits), nigeria-football for the Super Eagles, Super Falcons and Nigerian players, and world-football for everything else: general football news, other leagues, global stars and stories that fit no other hub.
 - imageAlt: alt text describing a likely lead photo for this story, under 125 characters, without "image of".`;
 
 function buildStubDraft(source: SourceItem): GeneratedDraft {
@@ -105,7 +106,7 @@ function buildStubDraft(source: SourceItem): GeneratedDraft {
       source.rawSummary,
     ].join("\n\n"),
     tags: "AI Desk, Stub",
-    category: (CATEGORY_SLUGS as readonly string[]).includes(source.categorySlug) ? (source.categorySlug as CategorySlug) : "transfers",
+    category: (CATEGORY_SLUGS as readonly string[]).includes(source.categorySlug) ? (source.categorySlug as CategorySlug) : "world-football",
     imageAlt: source.headline,
     sourceOutlet: source.sourceName,
     sourceUrl: source.sourceUrl,

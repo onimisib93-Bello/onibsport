@@ -6,7 +6,8 @@ export type CategorySlug =
   | "champions-league"
   | "nigeria-football"
   | "npfl"
-  | "transfers";
+  | "transfers"
+  | "world-football";
 
 export type Accent = "indigo" | "sky" | "orange" | "gold";
 

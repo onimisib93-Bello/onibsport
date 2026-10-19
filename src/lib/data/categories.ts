@@ -9,6 +9,7 @@ export const categories: Category[] = [
   { slug: "nigeria-football", name: "Nigeria Football", shortName: "Nigeria", accent: "sky" },
   { slug: "npfl", name: "NPFL", shortName: "NPFL", accent: "orange" },
   { slug: "transfers", name: "Transfers", shortName: "Transfers", accent: "gold" },
+  { slug: "world-football", name: "World Football", shortName: "World", accent: "sky" },
 ];
 
 export function getCategory(slug: string): Category | undefined {
