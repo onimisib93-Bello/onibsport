@@ -28,7 +28,7 @@ export default function Marquee({
     <div className={cn("group/marquee relative flex min-w-0 flex-1 items-stretch", className)}>
       <div className="no-scrollbar relative min-w-0 flex-1 overflow-hidden motion-reduce:overflow-x-auto" role="region" aria-label={label}>
         <div
-          className="flex w-max group-hover/marquee:[animation-play-state:paused] group-focus-within/marquee:[animation-play-state:paused] motion-reduce:!animate-none"
+          className="flex h-full w-max group-hover/marquee:[animation-play-state:paused] group-focus-within/marquee:[animation-play-state:paused] motion-reduce:!animate-none"
           style={{ animation: `ticker ${seconds}s linear infinite`, animationPlayState: paused ? "paused" : undefined }}
         >
           <div className="flex shrink-0 items-stretch">{children}</div>
