@@ -93,7 +93,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       {hasMatches && <AutoRefresh />}
 
       {portalWord ? (
-        <HubPortal word={portalWord} image={lead?.coverImage || lead?.image} deep={theme.deep} tint={theme.tint} eyebrow={`Onibsport ${category.name} desk`}>
+        <HubPortal word={portalWord} image={lead?.image || lead?.coverImage} deep={theme.deep} tint={theme.tint} eyebrow={`Onibsport ${category.name} desk`}>
           {intro}
         </HubPortal>
       ) : (

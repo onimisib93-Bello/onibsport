@@ -35,7 +35,7 @@ export default function EditorsPicks({ articles }: { articles: Article[] }) {
             items={articles.map((a) => ({
               id: a.slug,
               title: a.title,
-              image: a.coverImage || a.image,
+              image: a.image || a.coverImage,
               href: `/article/${a.slug}`,
               kicker: getCategory(a.category)?.name,
             }))}
