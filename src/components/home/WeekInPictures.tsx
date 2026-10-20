@@ -8,7 +8,7 @@ export default function WeekInPictures({ articles }: { articles: Article[] }) {
   const items = articles
     .filter((a) => a.image)
     .slice(0, 8)
-    .map((a) => ({ src: a.coverImage || a.image, alt: a.imageAlt, href: `/article/${a.slug}`, caption: a.title }));
+    .map((a) => ({ src: a.image || a.coverImage, alt: a.imageAlt, href: `/article/${a.slug}`, caption: a.title }));
   if (items.length < 4) return null;
 
   return (

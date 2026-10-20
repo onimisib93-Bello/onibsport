@@ -151,11 +151,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
         <div className="mx-auto mt-8 max-w-[1100px] px-4 sm:px-6">
           {article.featuredVideoUrl ? (
-            <ArticleVideo src={article.featuredVideoUrl} title={article.title} poster={article.coverImage || article.image} />
+            <ArticleVideo src={article.featuredVideoUrl} title={article.title} poster={article.image || article.coverImage} />
           ) : (
             <figure>
               <FullImage
-                src={article.coverImage || article.image}
+                src={article.image || article.coverImage}
                 alt={article.imageAlt}
                 priority
                 sizes="(min-width: 1100px) 1100px, 100vw"
@@ -248,7 +248,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <section aria-label="Next story" className="mx-auto mt-16 max-w-[1100px] px-4 sm:px-6">
           <Link href={`/article/${nextStory.slug}`} className="group relative block overflow-hidden rounded-3xl bg-night text-white">
             <NewsImage
-              src={nextStory.coverImage || nextStory.image}
+              src={nextStory.image || nextStory.coverImage}
               alt=""
               fill
               sizes="1100px"

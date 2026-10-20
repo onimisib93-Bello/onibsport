@@ -77,7 +77,7 @@ export default function HeroCarousel({ articles }: { articles: Article[] }) {
                 <Link href={`/article/${article.slug}`} tabIndex={i === selected ? 0 : -1} className="group block">
                   <div className="relative aspect-[4/5] w-full sm:aspect-[16/10] lg:aspect-auto lg:h-[min(72vh,640px)]">
                     <NewsImage
-                      src={article.coverImage || article.image}
+                      src={article.image || article.coverImage}
                       alt={article.imageAlt}
                       fill
                       priority={i === 0}

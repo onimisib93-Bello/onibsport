@@ -28,7 +28,7 @@ export default function TransferTimeline({ articles }: { articles: Article[] }) 
         textColor="#ffffff"
         mutedTextColor="rgb(255 255 255 / 0.7)"
         activeColor="#fbb03b"
-        imageUrl={last.coverImage || last.image}
+        imageUrl={last.image || last.coverImage}
         imageAlt={last.imageAlt}
         duration={1.2}
       />
