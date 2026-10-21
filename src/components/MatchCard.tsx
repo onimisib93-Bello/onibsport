@@ -5,6 +5,7 @@ import { getCategory } from "@/lib/data/categories";
 import Crest from "@/components/ui/Crest";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
+import LiveMinute from "@/components/ui/LiveMinute";
 import { cn } from "@/lib/utils";
 
 function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boolean }) {
@@ -12,7 +13,7 @@ function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boole
     return (
       <span className="flex items-center gap-1.5 text-xs font-bold text-orange-deep">
         <LiveDot />
-        <span className="tabular-nums">{fixture.minute != null ? `${fixture.minute}'` : "Live"}</span>
+        <LiveMinute kickoff={fixture.kickoff} paused={fixture.paused} minute={fixture.minute} className="tabular-nums" />
       </span>
     );
   }
@@ -54,10 +55,11 @@ export default function MatchCard({ fixture, showDate, showLeague }: { fixture: 
   return (
     <div
       className={cn(
-        "relative flex items-center gap-4 rounded-xl border bg-white px-4 py-3 transition-colors",
+        "relative flex items-center gap-4 rounded-xl border bg-white px-4 py-3 transition-colors hover:border-ink/25",
         fixture.status === "live" ? "border-orange/50 shadow-[0_0_0_3px_rgb(247_148_29/0.12)]" : "border-line"
       )}
     >
+      <Link href={`/match/${fixture.id}`} className="absolute inset-0 rounded-xl" aria-label={`${fixture.home} v ${fixture.away}: match details`} />
       <div className="w-12 shrink-0">
         <StatusLabel fixture={fixture} showDate={showDate} />
       </div>
@@ -66,7 +68,7 @@ export default function MatchCard({ fixture, showDate, showLeague }: { fixture: 
         <TeamLine name={fixture.away} crest={fixture.awayCrest} score={fixture.awayScore} winner={finished && as > hs} dim={finished && as < hs} />
       </div>
       {league && (
-        <Link href={`/category/${league.slug}`} aria-label={league.name} className="shrink-0 rounded-md">
+        <Link href={`/category/${league.slug}`} aria-label={league.name} className="relative shrink-0 rounded-md">
           <LeagueCrest slug={league.slug} size={26} />
         </Link>
       )}

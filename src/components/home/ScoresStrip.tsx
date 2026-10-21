@@ -7,6 +7,7 @@ import { formatKickoff, formatDay } from "@/lib/time";
 import Crest from "@/components/ui/Crest";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
+import LiveMinute from "@/components/ui/LiveMinute";
 import SwipeRow from "@/components/ui/SwipeRow";
 import { cn } from "@/lib/utils";
 import type { Scoreboard } from "@/lib/live/footballData";
@@ -35,7 +36,7 @@ function Tile({ f, today }: { f: Fixture; today: string }) {
 
   return (
     <Link
-      href={`/live-scores?league=${f.league}&date=${f.kickoff.slice(0, 10)}`}
+      href={`/match/${f.id}`}
       className={cn(
         "flex w-[248px] shrink-0 snap-start flex-col gap-3 rounded-2xl p-4 transition-transform duration-300 hover:-translate-y-0.5",
         live ? "bg-night-2 ring-1 ring-orange/50" : "bg-night-2/70 ring-1 ring-white/10 hover:ring-white/25"
@@ -49,7 +50,7 @@ function Tile({ f, today }: { f: Fixture; today: string }) {
         {live ? (
           <span className="flex items-center gap-1.5 font-bold text-orange">
             <LiveDot />
-            {f.minute != null ? `${f.minute}'` : "Live"}
+            <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} className="tabular-nums" />
           </span>
         ) : done ? (
           <span className="font-semibold text-white/55">{dayLabel ? `FT, ${dayLabel}` : "Full time"}</span>

@@ -131,6 +131,7 @@ function toFixture(m: FootballDataMatch, slug: CategorySlug): Fixture {
     homeScore: m.score?.fullTime?.home ?? null,
     awayScore: m.score?.fullTime?.away ?? null,
     minute: m.minute ?? null,
+    paused: m.status === "PAUSED",
     matchday: m.matchday ?? undefined,
     status: STATUS_MAP[m.status] ?? "upcoming",
     kickoff: m.utcDate,
@@ -241,6 +242,82 @@ export async function getScoreboard(): Promise<Scoreboard> {
   const seen = new Set(todays.map((f) => f.id));
   const strip = todays.length >= 6 ? todays : [...todays, ...ticker.filter((f) => !seen.has(f.id))].slice(0, 14);
   return { today, ticker: ticker.slice(0, 14), strip, quietDay: todays.length === 0, generatedAt: new Date().toISOString() };
+}
+
+interface FootballDataMatchDetail extends FootballDataMatch {
+  competition?: { code?: string; name?: string };
+  season?: { startDate?: string };
+  venue?: string | null;
+  stage?: string | null;
+  referees?: { name?: string; type?: string }[];
+  homeTeam?: FootballDataTeam & { tla?: string };
+  awayTeam?: FootballDataTeam & { tla?: string };
+  score?: FootballDataMatch["score"] & { halfTime?: { home: number | null; away: number | null } };
+}
+
+export interface MatchInfo {
+  fixture: Fixture;
+  competition: string | null;
+  /** Season start year, e.g. 2026 for 2026/27. */
+  season: number;
+  /** Full team names, as well as the short ones on the fixture. */
+  homeName: string;
+  awayName: string;
+  venue: string | null;
+  referee: string | null;
+  stage: string | null;
+  halftime: { home: number; away: number } | null;
+}
+
+/** The scores feed could not be reached (rate limit or network), as opposed to the match not existing. */
+export class MatchUnavailableError extends Error {}
+
+/** One match by its scores-feed id, or null if it doesn't exist. Throws MatchUnavailableError if the feed is unreachable. */
+export async function getMatch(id: string): Promise<MatchInfo | null> {
+  if (!/^\d+$/.test(id)) {
+    const sample = sampleFixtures((f) => f.id === id)[0];
+    if (!sample) return null;
+    return {
+      fixture: sample,
+      competition: null,
+      season: new Date(sample.kickoff).getUTCFullYear(),
+      homeName: sample.home,
+      awayName: sample.away,
+      venue: null,
+      referee: null,
+      stage: null,
+      halftime: null,
+    };
+  }
+
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+  if (!apiKey) return null;
+  let m: FootballDataMatchDetail;
+  try {
+    const res = await fetch(`https://api.football-data.org/v4/matches/${id}`, { headers: { "X-Auth-Token": apiKey }, next: { revalidate: 30 } });
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) throw new Error(`football-data ${res.status}`);
+    m = (await res.json()) as FootballDataMatchDetail;
+  } catch (error) {
+    // Rate limit or network trouble: the match may well exist, so don't report it missing.
+    throw new MatchUnavailableError(error instanceof Error ? error.message : "football-data request failed");
+  }
+  const slug = m.competition?.code ? SLUG_BY_CODE[m.competition.code] : undefined;
+  if (!slug) return null;
+
+  const ht = m.score?.halfTime;
+  const startYear = Number(m.season?.startDate?.slice(0, 4));
+  return {
+    fixture: toFixture(m, slug),
+    competition: m.competition?.name ?? null,
+    season: Number.isFinite(startYear) && startYear > 0 ? startYear : new Date(m.utcDate).getUTCFullYear(),
+    homeName: m.homeTeam?.name ?? m.homeTeam?.shortName ?? "TBD",
+    awayName: m.awayTeam?.name ?? m.awayTeam?.shortName ?? "TBD",
+    venue: m.venue ?? null,
+    referee: m.referees?.find((r) => r.type === "REFEREE")?.name ?? m.referees?.[0]?.name ?? null,
+    stage: m.stage ?? null,
+    halftime: ht && ht.home != null && ht.away != null ? { home: ht.home, away: ht.away } : null,
+  };
 }
 
 export async function getStandingsForLeague(slug: CategorySlug): Promise<StandingRow[] | undefined> {

@@ -7,6 +7,7 @@ import { formatKickoff } from "@/lib/time";
 import Marquee from "@/components/ui/Marquee";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
+import LiveMinute from "@/components/ui/LiveMinute";
 
 /** The LED perimeter board, kept current in the browser (see useLiveScores). */
 export default function TickerBoard({ initial }: { initial: Scoreboard }) {
@@ -28,7 +29,7 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
           {fixtures.map((f) => (
             <Link
               key={f.id}
-              href={`/live-scores?league=${f.league}`}
+              href={`/match/${f.id}`}
               className="flex shrink-0 items-center gap-2.5 border-r border-white/10 px-5 text-[13px] font-semibold whitespace-nowrap transition-colors hover:bg-white/5"
             >
               <LeagueCrest slug={f.league} size={18} />
@@ -42,7 +43,7 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
               )}
               <span>{f.away}</span>
               <span className="text-[11px] font-medium text-white/50">
-                {f.status === "live" ? (f.minute != null ? `${f.minute}'` : "Live") : f.status === "finished" ? "FT" : "WAT"}
+                {f.status === "live" ? <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} /> : f.status === "finished" ? "FT" : "WAT"}
               </span>
             </Link>
           ))}
