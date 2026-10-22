@@ -10,6 +10,7 @@ export function liveMinuteLabel({
   paused,
   minute,
   extra,
+  minuteAt,
   now,
 }: {
   kickoff: string;
@@ -19,10 +20,17 @@ export function liveMinuteLabel({
   minute?: number | null;
   /** Real stoppage-time minute, when known. */
   extra?: number | null;
+  /** When `minute` was read; the clock runs on from there. */
+  minuteAt?: string | null;
   now: number;
 }): string {
   if (paused) return "HT";
-  if (minute != null) return extra ? `${minute}+${extra}'` : `${minute}'`;
+  if (minute != null) {
+    if (!minuteAt) return extra ? `${minute}+${extra}'` : `${minute}'`;
+    const running = minute + Math.max(0, Math.floor((now - new Date(minuteAt).getTime()) / 60_000));
+    if (minute <= 45 && running > 45) return "45+'";
+    return running > 90 ? "90+'" : `${running}'`;
+  }
 
   const elapsed = Math.floor((now - new Date(kickoff).getTime()) / 60_000) + 1;
   if (elapsed <= 1) return "1'";
