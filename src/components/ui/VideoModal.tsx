@@ -4,8 +4,11 @@ import { useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "@phosphor-icons/react/dist/ssr";
 
-/** Popup player. Escape, the close button or a click outside closes it. */
-export default function VideoModal({ src, title, onClose }: { src: string | null; title: string; onClose: () => void }) {
+/**
+ * Popup player for a YouTube embed or an uploaded video file (`file`).
+ * Escape, the close button or a click outside closes it.
+ */
+export default function VideoModal({ src, title, onClose, file = false }: { src: string | null; title: string; onClose: () => void; file?: boolean }) {
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -50,13 +53,17 @@ export default function VideoModal({ src, title, onClose }: { src: string | null
               <X size={18} weight="bold" />
             </button>
             <div className="relative aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl">
-              <iframe
-                className="absolute inset-0 h-full w-full"
-                src={src}
-                title={title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              {file ? (
+                <video className="absolute inset-0 h-full w-full" src={src} title={title} controls autoPlay playsInline preload="metadata" />
+              ) : (
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src={src}
+                  title={title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
             </div>
             <p className="mt-3 font-display text-2xl font-extrabold text-white">{title}</p>
           </motion.div>

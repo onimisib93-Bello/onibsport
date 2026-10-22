@@ -78,7 +78,7 @@ export default function Header() {
               { href: "/", label: "News" },
               { href: "/live-scores", label: "Scores & fixtures" },
               { href: "/category/transfers", label: "Transfers" },
-              { href: "/#videos", label: "Videos" },
+              { href: "/videos", label: "Videos" },
             ].map((item) => {
               const active = item.href === pathname;
               return (
