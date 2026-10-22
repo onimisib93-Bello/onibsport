@@ -18,7 +18,7 @@ import {
   getFeaturedVideoArticle,
 } from "@/lib/data/db-articles";
 import { getFixturesForLeague, getScoreboard, getStandingsForLeague } from "@/lib/live/footballData";
-import { videos } from "@/lib/data/videos";
+import { getPublishedVideos } from "@/lib/data/db-videos";
 import { CategorySlug } from "@/lib/types";
 
 export const revalidate = 60;
@@ -26,7 +26,7 @@ export const revalidate = 60;
 const DESK_LEAGUES: CategorySlug[] = ["premier-league", "la-liga", "serie-a", "bundesliga", "champions-league", "npfl"];
 
 export default async function Home() {
-  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle, scoreboard, naijaFixtures, npflFixtures, deskArticles, deskTables] =
+  const [latest, featured, nigeriaFootball, npfl, transferArticles, videoArticle, scoreboard, naijaFixtures, npflFixtures, deskArticles, deskTables, videos] =
     await Promise.all([
       getLatestArticles(30),
       getFeaturedArticles(10),
@@ -39,6 +39,7 @@ export default async function Home() {
       getFixturesForLeague("npfl"),
       Promise.all(DESK_LEAGUES.map((slug) => getArticlesByCategory(slug, 5))),
       Promise.all(DESK_LEAGUES.map((slug) => getStandingsForLeague(slug))),
+      getPublishedVideos(4),
     ]);
 
   // Articles marked "Feature on homepage" in the admin get priority for the hero

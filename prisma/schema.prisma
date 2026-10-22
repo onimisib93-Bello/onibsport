@@ -85,3 +85,22 @@ model PageView {
   @@index([createdAt])
   @@index([articleSlug, createdAt])
 }
+
+/// A video in the Watch section: a YouTube link or a file uploaded to Vercel Blob.
+model Video {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  /// "youtube" or "upload"
+  kind        String
+  /// The 11-character YouTube id, for kind "youtube".
+  youtubeId   String?
+  /// The uploaded file's Blob URL, for kind "upload".
+  videoUrl    String?
+  thumbnail   String?
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published, createdAt])
+}

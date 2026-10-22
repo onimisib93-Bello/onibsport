@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { Play, YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "@/lib/types";
-import { VideoItem } from "@/lib/data/videos";
+import { playSource, type SiteVideo } from "@/lib/videos";
 import { YOUTUBE_CHANNEL_URL } from "@/lib/config";
 import NewsImage from "@/components/ui/NewsImage";
 import VideoModal from "@/components/ui/VideoModal";
@@ -24,11 +24,11 @@ function PlayBadge({ large = false }: { large?: boolean }) {
 }
 
 /**
- * Videos: the featured video story large, channel uploads beside it. Both
- * open in a popup player; uploads without a video ID link out to the channel.
+ * Videos: the featured video story large, the latest videos beside it. Both
+ * open in a popup player; placeholder cards without a video link out to the channel.
  */
-export default function YouTubeSection({ videos, featured }: { videos: VideoItem[]; featured?: Article }) {
-  const [playing, setPlaying] = useState<{ src: string; title: string } | null>(null);
+export default function YouTubeSection({ videos, featured }: { videos: SiteVideo[]; featured?: Article }) {
+  const [playing, setPlaying] = useState<{ src: string; title: string; file?: boolean } | null>(null);
   const close = useCallback(() => setPlaying(null), []);
   const hasFeature = !!featured?.featuredVideoUrl;
 
@@ -40,15 +40,20 @@ export default function YouTubeSection({ videos, featured }: { videos: VideoItem
           <h2 id="videos-title" className="font-display text-4xl font-black leading-none sm:text-5xl">
             Watch
           </h2>
-          <a
-            href={YOUTUBE_CHANNEL_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-orange"
-          >
-            <YoutubeLogo size={18} weight="fill" className="text-[#ff0033]" aria-hidden="true" />
-            Our YouTube channel
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/videos" className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 transition-colors hover:bg-white hover:text-ink">
+              All videos
+            </Link>
+            <a
+              href={YOUTUBE_CHANNEL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-orange"
+            >
+              <YoutubeLogo size={18} weight="fill" className="text-[#ff0033]" aria-hidden="true" />
+              Our YouTube channel
+            </a>
+          </div>
         </div>
 
         <div className={`mt-8 grid gap-6 ${hasFeature ? "lg:grid-cols-[1.6fr_1fr]" : ""}`}>
@@ -85,7 +90,8 @@ export default function YouTubeSection({ videos, featured }: { videos: VideoItem
           )}
 
           <ul className={`grid content-start gap-3 ${hasFeature ? "" : "sm:grid-cols-3"}`}>
-            {videos.map((video) => {
+            {videos.slice(0, hasFeature ? 4 : 3).map((video) => {
+              const source = playSource(video);
               const inner = (
                 <>
                   <span className={`relative block aspect-video w-full shrink-0 overflow-hidden rounded-2xl bg-night-2 ${hasFeature ? "sm:w-44" : ""}`}>
@@ -103,19 +109,15 @@ export default function YouTubeSection({ videos, featured }: { videos: VideoItem
                   <span className="min-w-0">
                     <span className="line-clamp-2 block font-display text-xl font-extrabold leading-[1.05]">{video.title}</span>
                     <span className="mt-1 line-clamp-2 block text-sm text-white/60">{video.description}</span>
-                    {!video.videoId && <span className="mt-1 block text-xs font-semibold text-white/45">Opens YouTube</span>}
+                    {!source && <span className="mt-1 block text-xs font-semibold text-white/45">Opens YouTube</span>}
                   </span>
                 </>
               );
               const cls = `group flex w-full cursor-pointer flex-col gap-3 rounded-2xl p-2 text-left transition-colors hover:bg-white/5 ${hasFeature ? "sm:flex-row sm:items-center" : ""}`;
               return (
-                <li key={video.slug}>
-                  {video.videoId ? (
-                    <button
-                      type="button"
-                      className={cls}
-                      onClick={() => setPlaying({ src: `https://www.youtube-nocookie.com/embed/${video.videoId}?autoplay=1`, title: video.title })}
-                    >
+                <li key={video.id}>
+                  {source ? (
+                    <button type="button" className={cls} onClick={() => setPlaying({ ...source, title: video.title })}>
                       {inner}
                     </button>
                   ) : (
@@ -129,7 +131,7 @@ export default function YouTubeSection({ videos, featured }: { videos: VideoItem
           </ul>
         </div>
       </div>
-      <VideoModal src={playing?.src ?? null} title={playing?.title ?? ""} onClose={close} />
+      <VideoModal src={playing?.src ?? null} title={playing?.title ?? ""} file={playing?.file} onClose={close} />
     </section>
   );
 }

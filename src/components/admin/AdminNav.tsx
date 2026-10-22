@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SquaresFour, Newspaper, PlusCircle, Robot, ChartBar } from "@phosphor-icons/react/dist/ssr";
+import { SquaresFour, Newspaper, PlusCircle, Robot, ChartBar, VideoCamera } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/articles", label: "Articles", Icon: Newspaper, exact: false },
   { href: "/admin/articles/new", label: "Write a story", Icon: PlusCircle, exact: true },
   { href: "/admin/ai-desk", label: "AI Desk", Icon: Robot, exact: true },
+  { href: "/admin/videos", label: "Videos", Icon: VideoCamera, exact: true },
   { href: "/admin/analytics", label: "Analytics", Icon: ChartBar, exact: true },
 ];
 
