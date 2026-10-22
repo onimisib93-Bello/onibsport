@@ -12,12 +12,14 @@ export default function LiveMinute({
   paused,
   minute,
   extra,
+  minuteAt,
   className,
 }: {
   kickoff: string;
   paused?: boolean;
   minute?: number | null;
   extra?: number | null;
+  minuteAt?: string | null;
   className?: string;
 }) {
   const [now, setNow] = useState<number | null>(null);
@@ -34,7 +36,7 @@ export default function LiveMinute({
 
   return (
     <span className={className} suppressHydrationWarning>
-      {now == null ? "Live" : liveMinuteLabel({ kickoff, paused, minute, extra, now })}
+      {now == null ? "Live" : liveMinuteLabel({ kickoff, paused, minute, extra, minuteAt, now })}
     </span>
   );
 }

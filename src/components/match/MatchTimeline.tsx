@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowsDownUp, SoccerBall } from "@phosphor-icons/react/dist/ssr";
-import type { MatchEvent } from "@/lib/live/apiFootball";
+import type { MatchEvent } from "@/lib/live/highlightly";
 import { cn } from "@/lib/utils";
 import { minuteText } from "@/lib/live/minute";
 

@@ -1,26 +1,31 @@
 import { ArrowDown, ArrowUp, SoccerBall } from "@phosphor-icons/react/dist/ssr";
-import type { Lineup, LineupPlayer, MatchEvent, Side } from "@/lib/live/apiFootball";
+import type { Lineup, LineupPlayer, MatchEvent, Side } from "@/lib/live/highlightly";
 import { HOME_COLOUR, AWAY_COLOUR } from "@/components/match/MatchStats";
 import { cn } from "@/lib/utils";
 
 type Marks = Map<string, { goals: number; yellow: boolean; red: boolean; off?: number; on?: number }>;
 
-/** Goals, cards and substitution minutes per player name, for one side. */
+/** A player's key: their feed id when there is one (names differ between events and line-ups), else the name. */
+const keyOf = (name: string, id?: number | null) => (id != null ? `#${id}` : name);
+const playerKey = (p: LineupPlayer) => keyOf(p.name, p.id);
+
+/** Goals, cards and substitution minutes per player, for one side. */
 function marksFor(events: MatchEvent[], side: Side): Marks {
   const marks: Marks = new Map();
-  const get = (name: string) => {
-    const m = marks.get(name) ?? { goals: 0, yellow: false, red: false };
-    marks.set(name, m);
+  const get = (key: string) => {
+    const m = marks.get(key) ?? { goals: 0, yellow: false, red: false };
+    marks.set(key, m);
     return m;
   };
   for (const e of events) {
     if (e.side !== side) continue;
-    if (e.kind === "goal" || e.kind === "penalty") get(e.player).goals++;
-    if (e.kind === "yellow") get(e.player).yellow = true;
-    if (e.kind === "red" || e.kind === "second-yellow") get(e.player).red = true;
+    const who = keyOf(e.player, e.playerId);
+    if (e.kind === "goal" || e.kind === "penalty") get(who).goals++;
+    if (e.kind === "yellow") get(who).yellow = true;
+    if (e.kind === "red" || e.kind === "second-yellow") get(who).red = true;
     if (e.kind === "sub" && e.subKnown) {
-      get(e.player).on = e.minute;
-      if (e.secondary) get(e.secondary).off = e.minute;
+      get(who).on = e.minute;
+      if (e.secondary) get(keyOf(e.secondary, e.secondaryId)).off = e.minute;
     }
   }
   return marks;
@@ -55,7 +60,7 @@ function Pitch({ home, away, homeMarks, awayMarks }: { home: Lineup; away: Lineu
   };
 
   const dot = ({ p, x, y }: { p: LineupPlayer; x: number; y: number }, side: Side, marks: Marks) => {
-    const m = marks.get(p.name);
+    const m = marks.get(playerKey(p));
     return (
       <div key={`${side}-${p.name}`} className="absolute flex w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: `${x}%`, top: `${y}%` }}>
         <span
@@ -90,7 +95,7 @@ function Pitch({ home, away, homeMarks, awayMarks }: { home: Lineup; away: Lineu
 }
 
 function PlayerRow({ p, marks }: { p: LineupPlayer; marks: Marks }) {
-  const m = marks.get(p.name);
+  const m = marks.get(playerKey(p));
   return (
     <li className="flex items-center gap-3 py-2">
       <span className="w-6 text-right text-sm font-bold tabular-nums text-muted">{p.number ?? ""}</span>

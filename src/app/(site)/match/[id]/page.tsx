@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMatch, getStandingsForLeague, MatchUnavailableError, type MatchInfo } from "@/lib/live/footballData";
-import { getMatchDetails } from "@/lib/live/apiFootball";
+import { getMatchDetails } from "@/lib/live/highlightly";
 import { searchArticles } from "@/lib/data/db-articles";
 import { leagueThemes } from "@/lib/leagues";
 import type { Article, StandingRow } from "@/lib/types";
@@ -114,7 +114,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const f = info.fixture;
   const ref = {
     league: f.league,
-    season: info.season,
     kickoff: f.kickoff,
     homeNames: [f.home, info.homeName],
     awayNames: [f.away, info.awayName],

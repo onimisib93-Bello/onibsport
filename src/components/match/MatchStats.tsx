@@ -1,4 +1,4 @@
-import type { MatchStat } from "@/lib/live/apiFootball";
+import type { MatchStat } from "@/lib/live/highlightly";
 import { cn } from "@/lib/utils";
 
 /** Team colours for the comparison bars (checked for colour-blind separation; every bar also shows its number). */

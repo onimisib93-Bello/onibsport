@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarBlank, MapPin, SoccerBall } from "@phosphor-icons/react/dist/ssr";
 import type { MatchInfo } from "@/lib/live/footballData";
-import type { MatchDetails, MatchEvent, Side } from "@/lib/live/apiFootball";
+import type { MatchDetails, MatchEvent, Side } from "@/lib/live/highlightly";
 import { getCategory } from "@/lib/data/categories";
 import { leagueThemes } from "@/lib/leagues";
 import { formatDay, formatKickoff, SITE_TIME_LABEL } from "@/lib/time";
@@ -133,7 +133,7 @@ export default function MatchHero({ info, details }: { info: MatchInfo; details:
                   {live ? (
                     <>
                       <LiveDot className="[&>span]:bg-ink" />
-                      <LiveMinute kickoff={f.kickoff} paused={f.paused || details?.status === "HT"} minute={realMinute} extra={details?.extra} className="tabular-nums" />
+                      <LiveMinute kickoff={f.kickoff} paused={f.paused || details?.status === "HT"} minute={realMinute} extra={details?.extra} minuteAt={details?.fetchedAt} className="tabular-nums" />
                     </>
                   ) : (
                     "Full time"
