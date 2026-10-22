@@ -39,8 +39,8 @@ function Form({ form }: { form?: string }) {
   );
 }
 
-/** Full league table with qualification and relegation zones. */
-export default function StandingsTable({ rows, accent = "#2d1b69" }: { rows: StandingRow[]; accent?: string }) {
+/** Full league table with qualification and relegation zones; `highlight` marks teams (e.g. the two in a match). */
+export default function StandingsTable({ rows, accent = "#2d1b69", highlight = [] }: { rows: StandingRow[]; accent?: string; highlight?: string[] }) {
   const sorted = rank(rows);
   const showForm = sorted.some((r) => r.form);
   const hasBottom = sorted.length >= 10;
@@ -90,9 +90,11 @@ export default function StandingsTable({ rows, accent = "#2d1b69" }: { rows: Sta
           <tbody>
             {sorted.map((r) => {
               const z = zone(r.position, sorted.length);
+              const hl = highlight.includes(r.team);
+              const cellBg = hl ? "bg-[#efecfb]" : "bg-white";
               return (
-                <tr key={r.team} className="group border-b border-line transition-colors last:border-0 hover:bg-paper">
-                  <td className="sticky left-0 z-10 bg-white py-2.5 pl-4 pr-2 group-hover:bg-paper">
+                <tr key={r.team} className={cn("group border-b border-line transition-colors last:border-0 hover:bg-paper", hl && "bg-[#efecfb]")}>
+                  <td className={cn("sticky left-0 z-10 py-2.5 pl-4 pr-2 group-hover:bg-paper", cellBg)}>
                     <span className="flex items-center gap-2">
                       <span
                         aria-hidden="true"
@@ -102,7 +104,7 @@ export default function StandingsTable({ rows, accent = "#2d1b69" }: { rows: Sta
                       <span className="w-5 font-display text-lg font-bold tabular-nums text-ink">{r.position}</span>
                     </span>
                   </td>
-                  <th scope="row" className="sticky left-12 z-10 bg-white px-2 py-2.5 text-left font-semibold text-ink group-hover:bg-paper">
+                  <th scope="row" className={cn("sticky left-12 z-10 px-2 py-2.5 text-left text-ink group-hover:bg-paper", cellBg, hl ? "font-black" : "font-semibold")}>
                     <span className="flex items-center gap-2.5">
                       <Crest name={r.team} src={r.crest} size={22} />
                       <span className="max-w-[150px] truncate">{r.team}</span>

@@ -49,6 +49,8 @@ export interface Fixture {
   homeScore: number | null;
   awayScore: number | null;
   minute: number | null;
+  /** Half-time break in a live match. */
+  paused?: boolean;
   status: FixtureStatus;
   kickoff: string;
   homeCrest?: string;
