@@ -12,6 +12,7 @@ import MatchTimeline from "@/components/match/MatchTimeline";
 import MatchStats from "@/components/match/MatchStats";
 import MatchLineups from "@/components/match/MatchLineups";
 import KickoffCountdown from "@/components/match/KickoffCountdown";
+import MoreScoresLink from "@/components/match/MoreScoresLink";
 import StandingsTable from "@/components/StandingsTable";
 import ArticleCard from "@/components/ArticleCard";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -213,9 +214,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         )}
 
         <div className="mt-12 flex justify-center">
-          <Link href={`/live-scores?league=${f.league}&date=${f.kickoff.slice(0, 10)}`} className="rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo">
-            More scores from this day
-          </Link>
+          <MoreScoresLink league={f.league} kickoff={f.kickoff} />
         </div>
         <AdSlot placement="match" className="mt-12" />
       </div>

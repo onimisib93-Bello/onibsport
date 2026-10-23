@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Fixture } from "@/lib/types";
-import { formatKickoff, formatDay } from "@/lib/time";
 import { getCategory } from "@/lib/data/categories";
 import Crest from "@/components/ui/Crest";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
 import LiveMinute from "@/components/ui/LiveMinute";
+import LocalTime, { ZoneLabel } from "@/components/ui/LocalTime";
 import { cn } from "@/lib/utils";
 
 function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boolean }) {
@@ -18,12 +18,13 @@ function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boole
     );
   }
   if (fixture.status === "finished") {
-    return <span className="text-xs font-semibold text-muted">{showDate ? formatDay(fixture.kickoff, { day: "numeric", month: "short" }) : "FT"}</span>;
+    return <span className="text-xs font-semibold text-muted">{showDate ? <LocalTime iso={fixture.kickoff} day={{ day: "numeric", month: "short" }} time={false} /> : "FT"}</span>;
   }
   return (
     <span className="flex flex-col text-xs font-semibold leading-tight text-muted">
-      {showDate && <span>{formatDay(fixture.kickoff, { weekday: "short", day: "numeric" })}</span>}
-      <span className="tabular-nums text-ink">{formatKickoff(fixture.kickoff)}</span>
+      {showDate && <LocalTime iso={fixture.kickoff} day={{ weekday: "short", day: "numeric" }} time={false} />}
+      <LocalTime iso={fixture.kickoff} className="tabular-nums whitespace-nowrap text-ink" />
+      <ZoneLabel iso={fixture.kickoff} className="text-[10px] font-medium" />
     </span>
   );
 }
@@ -60,7 +61,7 @@ export default function MatchCard({ fixture, showDate, showLeague }: { fixture: 
       )}
     >
       <Link href={`/match/${fixture.id}`} className="absolute inset-0 rounded-xl" aria-label={`${fixture.home} v ${fixture.away}: match details`} />
-      <div className="w-12 shrink-0">
+      <div className="w-14 shrink-0">
         <StatusLabel fixture={fixture} showDate={showDate} />
       </div>
       <div className="min-w-0 flex-1 space-y-1.5">

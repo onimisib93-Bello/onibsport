@@ -3,7 +3,8 @@
 import Link from "next/link";
 import type { Scoreboard } from "@/lib/live/footballData";
 import { useLiveScores } from "@/lib/live/useLiveScores";
-import { formatKickoff } from "@/lib/time";
+import { formatKickoff, zoneLabel } from "@/lib/time";
+import { useViewer } from "@/lib/useViewer";
 import Marquee from "@/components/ui/Marquee";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
@@ -12,6 +13,7 @@ import LiveMinute from "@/components/ui/LiveMinute";
 /** The LED perimeter board, kept current in the browser (see useLiveScores). */
 export default function TickerBoard({ initial }: { initial: Scoreboard }) {
   const fixtures = useLiveScores(initial).ticker;
+  const viewer = useViewer();
   if (fixtures.length === 0) return null;
   const liveCount = fixtures.filter((f) => f.status === "live").length;
 
@@ -35,7 +37,7 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
               <LeagueCrest slug={f.league} size={18} />
               <span>{f.home}</span>
               {f.status === "upcoming" ? (
-                <span className="rounded bg-white/10 px-1.5 py-0.5 font-display text-sm font-bold tabular-nums text-white/80">{formatKickoff(f.kickoff)}</span>
+                <span className="rounded bg-white/10 px-1.5 py-0.5 font-display text-sm font-bold tabular-nums text-white/80">{formatKickoff(f.kickoff, viewer)}</span>
               ) : (
                 <span className={`font-display text-lg font-black leading-none tabular-nums ${f.status === "live" ? "led-glow text-orange" : "text-white"}`}>
                   {f.homeScore}–{f.awayScore}
@@ -43,7 +45,7 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
               )}
               <span>{f.away}</span>
               <span className="text-[11px] font-medium text-white/50">
-                {f.status === "live" ? <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} /> : f.status === "finished" ? "FT" : "WAT"}
+                {f.status === "live" ? <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} /> : f.status === "finished" ? "FT" : zoneLabel(f.kickoff, viewer)}
               </span>
             </Link>
           ))}

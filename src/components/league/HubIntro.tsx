@@ -1,7 +1,8 @@
 import { Category, Fixture, StandingRow } from "@/lib/types";
 import { LeagueTheme } from "@/lib/leagues";
-import { formatDay, formatKickoff } from "@/lib/time";
+import type { ReactNode } from "react";
 import LeagueCrest from "@/components/ui/LeagueCrest";
+import LocalTime from "@/components/ui/LocalTime";
 
 function leader(rows?: StandingRow[]) {
   if (!rows?.length) return null;
@@ -28,8 +29,8 @@ export default function HubIntro({
   const facts = [
     { label: "Stories", value: String(storyCount) },
     top ? { label: "Top of the table", value: `${top.team}, ${top.won * 3 + top.drawn} pts` } : null,
-    next ? { label: "Next up", value: `${next.home} v ${next.away}`, sub: `${formatDay(next.kickoff)}, ${formatKickoff(next.kickoff)} WAT` } : null,
-  ].filter(Boolean) as { label: string; value: string; sub?: string }[];
+    next ? { label: "Next up", value: `${next.home} v ${next.away}`, sub: <LocalTime iso={next.kickoff} day={{ weekday: "short", day: "numeric", month: "short" }} zone /> } : null,
+  ].filter(Boolean) as { label: string; value: string; sub?: ReactNode }[];
 
   return (
     <div className="mx-auto w-full max-w-[1400px] text-white">

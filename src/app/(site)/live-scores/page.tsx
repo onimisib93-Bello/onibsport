@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { categories } from "@/lib/data/categories";
-import { SCORE_LEAGUES, getFixturesForDate, getFixturesForRange, parseDateParam, todayIso } from "@/lib/live/footballData";
+import { SCORE_LEAGUES, getFixturesForRange, parseDateParam, todayIso } from "@/lib/live/footballData";
+import { shiftDate as shift } from "@/lib/time";
 import LiveScoresView, { type ScoresView } from "@/components/LiveScoresView";
 import AdSlot from "@/components/AdSlot";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -28,17 +29,13 @@ export const metadata: Metadata = {
   },
 };
 
-function shift(date: string, days: number) {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 export default async function LiveScoresPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const today = todayIso();
-  const date = parseDateParam(one(params.date)) ?? today;
+  // Without ?date= the browser picks the visitor's own today; the server only knows UTC.
+  const pickedDate = parseDateParam(one(params.date));
+  const date = pickedDate ?? today;
   const rawView = one(params.view);
   const view: ScoresView = rawView === "results" || rawView === "fixtures" ? rawView : "date";
   const rawLeague = one(params.league);
@@ -54,7 +51,8 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
       .filter((f) => f.status === "upcoming")
       .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
   } else {
-    fixtures = await getFixturesForDate(date);
+    // A local day overlaps three UTC days; LiveScoresView keeps the visitor's own.
+    fixtures = await getFixturesForRange(shift(date, -1), shift(date, 1));
   }
 
   const scoreCategories = categories.filter((c) => SCORE_LEAGUES.includes(c.slug));
@@ -66,14 +64,14 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
         <div className="relative mx-auto max-w-5xl">
           <h1 className="font-display text-6xl font-black leading-[0.85] sm:text-8xl">Scores &amp; fixtures</h1>
           <p className="mt-4 max-w-xl text-lg text-white/70">
-            Live scores, full-time results and upcoming kick-offs. Pick any date to see who played and who&apos;s up next. Times are West Africa Time.
+            Live scores, full-time results and upcoming kick-offs. Pick any date to see who played and who&apos;s up next. Times are in your own time zone.
           </p>
         </div>
       </section>
       {/* Keep today's scores and the results/fixtures views current while the page is open. */}
-      {(view !== "date" || date === today) && <AutoRefresh />}
+      {(view !== "date" || (date >= shift(today, -1) && date <= shift(today, 1))) && <AutoRefresh />}
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <LiveScoresView fixtures={fixtures} categories={scoreCategories} date={date} today={today} league={league} view={view} />
+        <LiveScoresView fixtures={fixtures} categories={scoreCategories} pickedDate={pickedDate} today={today} league={league} view={view} />
         <AdSlot placement="scores" className="mt-12" />
       </div>
     </>

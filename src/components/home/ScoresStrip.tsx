@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Fixture } from "@/lib/types";
 import { getCategory } from "@/lib/data/categories";
-import { formatKickoff, formatDay } from "@/lib/time";
+import { dateKey, formatDate, formatDay, formatKickoff, zoneLabel, type Viewer } from "@/lib/time";
+import { useViewer } from "@/lib/useViewer";
 import Crest from "@/components/ui/Crest";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
@@ -13,9 +14,8 @@ import { cn } from "@/lib/utils";
 import type { Scoreboard } from "@/lib/live/footballData";
 import { useLiveScores } from "@/lib/live/useLiveScores";
 
-function Tile({ f, today }: { f: Fixture; today: string }) {
-  const otherDay = formatDay(f.kickoff, { day: "2-digit", month: "2-digit" }) !== formatDay(today, { day: "2-digit", month: "2-digit" });
-  const dayLabel = otherDay ? formatDay(f.kickoff, { weekday: "short" }) : null;
+function Tile({ f, today, viewer }: { f: Fixture; today: string; viewer: Viewer }) {
+  const dayLabel = dateKey(f.kickoff, viewer.timeZone) !== today ? formatDay(f.kickoff, { weekday: "short" }, viewer) : null;
   const league = getCategory(f.league);
   const live = f.status === "live";
   const done = f.status === "finished";
@@ -57,7 +57,8 @@ function Tile({ f, today }: { f: Fixture; today: string }) {
         ) : (
           <span className="font-display text-base font-bold tabular-nums text-white">
             {dayLabel && <span className="mr-1 font-body text-xs font-semibold text-white/60">{dayLabel}</span>}
-            {formatKickoff(f.kickoff)}
+            {formatKickoff(f.kickoff, viewer)}
+            <span className="ml-1 font-body text-[11px] font-semibold text-white/60">{zoneLabel(f.kickoff, viewer)}</span>
           </span>
         )}
       </div>
@@ -72,8 +73,9 @@ function Tile({ f, today }: { f: Fixture; today: string }) {
 /** Today's matches as a swipeable scoreboard strip, refreshed live in the browser. */
 export default function ScoresStrip({ initial }: { initial: Scoreboard }) {
   const board = useLiveScores(initial);
+  const viewer = useViewer();
   const fixtures = board.strip;
-  const dateLabelIso = `${board.today}T12:00:00Z`;
+  const today = viewer.today ?? board.today;
   const quietDay = board.quietDay;
   if (fixtures.length === 0) return null;
   const live = fixtures.filter((f) => f.status === "live").length;
@@ -88,7 +90,7 @@ export default function ScoresStrip({ initial }: { initial: Scoreboard }) {
               Match centre
             </h2>
             <p className="mt-1.5 text-sm text-white/60">
-              {formatDay(dateLabelIso, { weekday: "long", day: "numeric", month: "long" })}
+              {formatDate(today, { weekday: "long", day: "numeric", month: "long" }, viewer)}
               {live > 0 && <span className="ml-2 font-semibold text-orange">{live} live now</span>}
               {quietDay && <span className="ml-2">No matches today. Latest results and next kick-offs.</span>}
             </p>
@@ -99,7 +101,7 @@ export default function ScoresStrip({ initial }: { initial: Scoreboard }) {
         </div>
         <SwipeRow label="Today's matches" tone="dark">
           {fixtures.map((f) => (
-            <Tile key={f.id} f={f} today={dateLabelIso} />
+            <Tile key={f.id} f={f} today={today} viewer={viewer} />
           ))}
         </SwipeRow>
       </div>

@@ -11,32 +11,29 @@ import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
 import { DayGroups } from "@/components/LeagueDataTabs";
 import { leagueTheme } from "@/lib/leagues";
-import { formatDay } from "@/lib/time";
+import { dateKey, formatDate, shiftDate as shift } from "@/lib/time";
+import { useViewer } from "@/lib/useViewer";
 import { cn } from "@/lib/utils";
 
 export type ScoresView = "date" | "results" | "fixtures";
 
-function shift(date: string, days: number) {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /**
  * Scores page controls and lists. Everything lives in the URL
  * (?date=, ?league=, ?view=) so any day or filter can be shared.
+ * Days are the visitor's local days: with no ?date= the page opens on their
+ * own today, and the server sends the UTC days around it for this to sort.
  */
 export default function LiveScoresView({
-  fixtures,
+  fixtures: around,
   categories,
-  date,
-  today,
+  pickedDate,
+  today: serverToday,
   league,
   view,
 }: {
   fixtures: Fixture[];
   categories: Category[];
-  date: string;
+  pickedDate: string | null;
   today: string;
   league: string;
   view: ScoresView;
@@ -45,6 +42,10 @@ export default function LiveScoresView({
   const reduce = useReducedMotion();
   const [pending, startTransition] = useTransition();
   const stripRef = useRef<HTMLDivElement>(null);
+  const viewer = useViewer();
+  const today = viewer.today ?? serverToday;
+  const date = pickedDate ?? today;
+  const fixtures = view === "date" ? around.filter((f) => dateKey(f.kickoff, viewer.timeZone) === date) : around;
 
   function go(next: Partial<{ date: string; league: string; view: ScoresView }>) {
     const params = new URLSearchParams();
@@ -125,9 +126,9 @@ export default function LiveScoresView({
                     selected ? "bg-orange text-ink" : "bg-white text-ink ring-1 ring-line hover:ring-ink"
                   )}
                 >
-                  <span className="text-xs font-semibold opacity-75">{d === today ? "Today" : formatDay(`${d}T12:00:00Z`, { weekday: "short" })}</span>
-                  <span className="font-display text-2xl font-black leading-none">{formatDay(`${d}T12:00:00Z`, { day: "numeric" })}</span>
-                  <span className="text-[11px] font-semibold opacity-70">{formatDay(`${d}T12:00:00Z`, { month: "short" })}</span>
+                  <span className="text-xs font-semibold opacity-75">{d === today ? "Today" : formatDate(d, { weekday: "short" }, viewer)}</span>
+                  <span className="font-display text-2xl font-black leading-none">{formatDate(d, { day: "numeric" }, viewer)}</span>
+                  <span className="text-[11px] font-semibold opacity-70">{formatDate(d, { month: "short" }, viewer)}</span>
                 </button>
               );
             })}
@@ -206,7 +207,7 @@ export default function LiveScoresView({
             {view === "date" && (
               <h2 className="mb-5 font-display text-3xl font-black text-ink">
                 {date === today ? "Today, " : ""}
-                {formatDay(`${date}T12:00:00Z`, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                {formatDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }, viewer)}
               </h2>
             )}
 

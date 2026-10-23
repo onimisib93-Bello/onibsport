@@ -4,11 +4,11 @@ import type { MatchInfo } from "@/lib/live/footballData";
 import type { MatchDetails, MatchEvent, Side } from "@/lib/live/highlightly";
 import { getCategory } from "@/lib/data/categories";
 import { leagueThemes } from "@/lib/leagues";
-import { formatDay, formatKickoff, SITE_TIME_LABEL } from "@/lib/time";
 import Crest from "@/components/ui/Crest";
 import LeagueCrest from "@/components/ui/LeagueCrest";
 import LiveDot from "@/components/ui/LiveDot";
 import LiveMinute from "@/components/ui/LiveMinute";
+import LocalTime, { ZoneLabel } from "@/components/ui/LocalTime";
 import { minuteText } from "@/lib/live/minute";
 import { cn } from "@/lib/utils";
 
@@ -114,8 +114,10 @@ export default function MatchHero({ info, details }: { info: MatchInfo; details:
           <div className="flex flex-col items-center pt-3 sm:pt-6">
             {f.status === "upcoming" ? (
               <>
-                <span className="font-display text-5xl font-black tabular-nums sm:text-7xl">{formatKickoff(f.kickoff)}</span>
-                <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/60">{SITE_TIME_LABEL} kick-off</span>
+                <LocalTime iso={f.kickoff} className="whitespace-nowrap font-display text-5xl font-black tabular-nums sm:text-7xl" />
+                <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/60">
+                  <ZoneLabel iso={f.kickoff} /> kick-off
+                </span>
               </>
             ) : (
               <>
@@ -156,7 +158,7 @@ export default function MatchHero({ info, details }: { info: MatchInfo; details:
             <dt className="sr-only">Date</dt>
             <CalendarBlank size={16} aria-hidden="true" />
             <dd>
-              {formatDay(f.kickoff, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, {formatKickoff(f.kickoff)} {SITE_TIME_LABEL}
+              <LocalTime iso={f.kickoff} day={{ weekday: "long", day: "numeric", month: "long", year: "numeric" }} zone />
             </dd>
           </div>
           {venue && (
