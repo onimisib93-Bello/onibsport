@@ -2,6 +2,9 @@ import { ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { getSourceQueue } from "@/lib/ai/alerts";
 import DraftButton from "@/components/admin/DraftButton";
 import CopyPromptButton from "@/components/admin/CopyPromptButton";
+import AlertFeedsPanel from "@/components/admin/AlertFeedsPanel";
+
+export const dynamic = "force-dynamic";
 
 const STEPS = [
   { title: "Read the source", text: "Fetches the full story from the link, plus its photo and publisher name." },
@@ -12,7 +15,8 @@ const STEPS = [
 
 export default async function AiDeskPage() {
   const stubMode = !process.env.ANTHROPIC_API_KEY;
-  const { items, isLive } = await getSourceQueue();
+  const { items, isLive, feeds } = await getSourceQueue();
+  const feedRows = feeds.map((f) => ({ url: f.url, origin: f.origin, id: f.id, keyword: f.keyword, ok: f.ok, count: f.items.length }));
 
   // One section per alert keyword, in the order the alerts are configured; newest story first in each.
   const groups: { keyword: string; anchor: string; items: typeof items }[] = [];
@@ -51,21 +55,14 @@ export default async function AiDeskPage() {
         </div>
       )}
 
-      {isLive ? (
-        <div className="mt-4 rounded-2xl border border-sky/30 bg-sky/10 p-4 text-sm text-ink">
-          <span className="font-bold text-sky-dark">Live queue:</span> these stories were just pulled from your Google Alerts RSS feed(s).
-        </div>
-      ) : (
+      {!isLive && (
         <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-ink/80 ring-1 ring-line">
-          <span className="font-bold text-ink">Sample queue:</span> no <code className="font-mono">NEWS_ALERTS_RSS_URL</code> is set (or it returned nothing), so this
-          is placeholder data. For each alert at{" "}
-          <a href="https://google.com/alerts" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo underline">
-            google.com/alerts
-          </a>
-          , switch delivery to <span className="font-semibold">RSS feed</span> and copy that alert&apos;s feed link. Paste all of them into{" "}
-          <code className="font-mono">NEWS_ALERTS_RSS_URL</code>, separated by commas.
+          <span className="font-bold text-ink">Sample queue:</span> none of your Google Alerts returned stories right now, so these are placeholders. Add or check your
+          alerts below.
         </div>
       )}
+
+      <AlertFeedsPanel feeds={feedRows} />
 
       <div className="mt-10 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-display text-3xl font-black text-ink">Incoming ({items.length})</h2>

@@ -22,6 +22,7 @@ const LEAGUE_IDS: Partial<Record<CategorySlug, number>> = {
   "serie-a": 115669,
   bundesliga: 67162,
   "champions-league": 2486,
+  npfl: 340333,
 };
 
 /** Requests left today, from the last response this server saw. */
@@ -34,7 +35,7 @@ class QuotaError extends Error {}
  * (bad key, not found), which is safe to cache. Throws on the daily limit or
  * a server problem, so nothing is cached.
  */
-async function hlGet<T>(path: string): Promise<T | null> {
+export async function hlGet<T>(path: string): Promise<T | null> {
   const key = process.env.HIGHLIGHTLY_API_KEY;
   if (!key) return null;
   if (remainingToday != null && remainingToday <= 3) throw new QuotaError("Highlightly daily limit nearly used");

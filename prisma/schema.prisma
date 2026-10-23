@@ -128,3 +128,12 @@ model Ad {
 
   @@index([active])
 }
+
+/// A Google Alerts RSS feed added from the AI Desk (on top of any in NEWS_ALERTS_RSS_URL).
+model AlertFeed {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  /// The alert's keyword, read from the feed title when it was added.
+  keyword   String   @default("")
+  createdAt DateTime @default(now())
+}

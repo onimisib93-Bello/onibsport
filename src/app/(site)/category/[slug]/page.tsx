@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { categories, getCategory } from "@/lib/data/categories";
 import { getArticlesByCategory } from "@/lib/data/db-articles";
-import { getFixturesForLeague, getStandingsForLeague } from "@/lib/live/footballData";
+import { getFixturesForLeague, getFixturesForRange, getStandingsForLeague, getTopScorers, todayIso } from "@/lib/live/footballData";
+import { shiftDate } from "@/lib/time";
+import type { Fixture } from "@/lib/types";
 import { leagueTheme } from "@/lib/leagues";
 import ArticleCard from "@/components/ArticleCard";
 import LeagueDataTabs from "@/components/LeagueDataTabs";
@@ -17,6 +19,21 @@ import TransferTimeline from "@/components/league/TransferTimeline";
 import { breadcrumbJsonLd } from "@/lib/seo";
 
 export const revalidate = 60;
+
+/** Refresh the open page every minute only while a match is live or about to kick off. */
+function liveOrSoon(fixtures: Fixture[]) {
+  const soon = Date.now() + 15 * 60_000;
+  return fixtures.some((f) => f.status === "live" || (f.status === "upcoming" && +new Date(f.kickoff) <= soon));
+}
+
+/** World Football has no single league, so its match centre covers every competition this week. */
+async function hubFixtures(slug: string): Promise<Fixture[]> {
+  if (slug === "world-football") {
+    const today = todayIso();
+    return getFixturesForRange(shiftDate(today, -3), shiftDate(today, 5));
+  }
+  return getFixturesForLeague(slug as Parameters<typeof getFixturesForLeague>[0]);
+}
 
 /** Hubs that open with the glyph-portal camera move, and the word it flies through. */
 const PORTAL_WORDS: Record<string, string> = {
@@ -60,16 +77,18 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   if (!category) notFound();
   const theme = leagueTheme(slug);
 
-  const [articles, fixtures, standings] = await Promise.all([
+  const [articles, fixtures, standings, scorers] = await Promise.all([
     getArticlesByCategory(slug),
-    getFixturesForLeague(category.slug),
+    hubFixtures(category.slug),
     getStandingsForLeague(category.slug),
+    getTopScorers(category.slug),
   ]);
   const [lead, ...rest] = articles;
   const gridArticles = rest.slice(0, 4);
   const riverArticles = rest.slice(4);
-  const hasMatches = fixtures.length > 0;
   const hasTable = !!standings && standings.length > 0;
+  // The match centre shows whenever there is anything to put in it.
+  const hasMatches = fixtures.length > 0 || hasTable || scorers.length > 0;
   const next = fixtures.filter((f) => f.status === "upcoming").sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff))[0];
   const portalWord = PORTAL_WORDS[slug];
 
@@ -82,7 +101,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   const sections = [
     { href: "#latest", label: "Latest", show: true },
-    { href: "#match-centre", label: "Results & fixtures", show: hasMatches },
+    { href: "#match-centre", label: fixtures.length > 0 ? "Results & fixtures" : "Match centre", show: hasMatches },
     { href: "#table", label: "Table", show: hasTable },
     { href: "#timeline", label: "Timeline", show: slug === "transfers" },
   ].filter((s) => s.show);
@@ -90,7 +109,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      {hasMatches && <AutoRefresh />}
+      {liveOrSoon(fixtures) && <AutoRefresh />}
 
       {portalWord ? (
         <HubPortal word={portalWord} image={lead?.image || lead?.coverImage} deep={theme.deep} tint={theme.tint} eyebrow={`Onibsport ${category.name} desk`}>
@@ -162,7 +181,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
                 <h2 id="match-centre-title" className="mb-4 font-display text-4xl font-black text-ink">
                   Match centre
                 </h2>
-                <LeagueDataTabs league={category.slug} fixtures={fixtures} standings={standings} accent={theme.deep} />
+                <LeagueDataTabs
+                  league={category.slug}
+                  fixtures={fixtures}
+                  standings={standings}
+                  scorers={scorers}
+                  showLeague={category.slug === "world-football"}
+                  accent={theme.deep}
+                />
               </section>
             ) : (
               <TrendingSidebar articles={articles.slice(0, 6)} title={`More ${category.shortName}`} />
@@ -179,7 +205,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           <h2 id="table-title" className="mb-5 font-display text-4xl font-black text-ink sm:text-5xl">
             {category.name} table
           </h2>
-          <StandingsTable rows={standings!} accent={theme.deep} />
+          <StandingsTable rows={standings!} accent={theme.deep} league={category.slug} />
         </section>
       )}
     </>
