@@ -105,7 +105,7 @@ export default function Footer() {
         </p>
         <div className="flex flex-col gap-2 border-t border-white/10 py-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Onibsport. All rights reserved.</p>
-          <p>Kick-off times are shown in West Africa Time (WAT).</p>
+          <p>Kick-off times are shown in your own time zone.</p>
         </div>
       </div>
     </footer>

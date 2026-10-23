@@ -1,6 +1,7 @@
 import { CategorySlug, Fixture, StandingRow } from "@/lib/types";
 import { fixtures as mockFixtures } from "@/lib/data/fixtures";
 import { standings as mockStandings } from "@/lib/data/standings";
+import { dateKey, shiftDate } from "@/lib/time";
 
 /**
  * Real live-score/standings source via football-data.org (free tier available
@@ -159,12 +160,15 @@ export async function getFixturesForLeague(slug: CategorySlug): Promise<Fixture[
 }
 
 /**
- * Every match on one calendar day (YYYY-MM-DD, UTC) across all covered
- * leagues — one API request for the five football-data.org competitions,
- * plus the placeholder NPFL/Nigeria fixtures for that day.
+ * Every match on one calendar day (YYYY-MM-DD) across all covered leagues —
+ * one API request for the five football-data.org competitions, plus the
+ * placeholder NPFL/Nigeria fixtures for that day. The day is the UTC one
+ * unless a time zone is given; a local day overlaps three UTC days.
  */
-export async function getFixturesForDate(date: string): Promise<Fixture[]> {
-  return getFixturesForRange(date, date);
+export async function getFixturesForDate(date: string, timeZone = "UTC"): Promise<Fixture[]> {
+  if (timeZone === "UTC") return getFixturesForRange(date, date);
+  const around = await getFixturesForRange(shiftDate(date, -1), shiftDate(date, 1));
+  return around.filter((f) => dateKey(f.kickoff, timeZone) === date);
 }
 
 /** Every match between two dates inclusive (YYYY-MM-DD, UTC; at most 10 days apart). */

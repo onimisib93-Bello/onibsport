@@ -4,8 +4,8 @@ import Link from "next/link";
 import { getArticleBySlug, getRelatedArticles, getAllPublishedForSitemap, getLatestArticles } from "@/lib/data/db-articles";
 import { getCategory } from "@/lib/data/categories";
 import { leagueTheme } from "@/lib/leagues";
-import { formatDay, formatKickoff } from "@/lib/time";
 import TimeAgo from "@/components/ui/TimeAgo";
+import LocalTime from "@/components/ui/LocalTime";
 import { parseBlocks, plainText, readingMinutes, RenderBlock } from "@/lib/richText";
 import ArticleCard from "@/components/ArticleCard";
 import ShareBar from "@/components/ShareBar";
@@ -130,9 +130,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               <div className="text-sm leading-tight">
                 <p className="font-bold text-ink">{article.author}</p>
                 <p className="text-muted">
-                  <time dateTime={article.publishedAt}>
-                    {formatDay(article.publishedAt, { day: "numeric", month: "long", year: "numeric" })}, {formatKickoff(article.publishedAt)} WAT
-                  </time>
+                  <LocalTime iso={article.publishedAt} day={{ day: "numeric", month: "long", year: "numeric" }} zone />
                 </p>
               </div>
             </div>

@@ -7,26 +7,28 @@ import { Fixture, StandingRow } from "@/lib/types";
 import MatchCard from "@/components/MatchCard";
 import StandingsTable from "@/components/StandingsTable";
 import LiveDot from "@/components/ui/LiveDot";
-import { formatDay } from "@/lib/time";
+import { dateKey, formatDate, formatDay } from "@/lib/time";
+import { useViewer } from "@/lib/useViewer";
 import { cn } from "@/lib/utils";
 
 type Tab = "results" | "fixtures" | "table";
 
 const PAGE = 8;
 
-/** Matches grouped under a day heading, in the order given. */
+/** Matches grouped under the visitor's local day, in the order given. */
 export function DayGroups({ fixtures, showLeague = false }: { fixtures: Fixture[]; showLeague?: boolean }) {
-  const groups: { day: string; items: Fixture[] }[] = [];
+  const viewer = useViewer();
+  const groups: { key: string; day: string; items: Fixture[] }[] = [];
   for (const f of fixtures) {
-    const day = formatDay(f.kickoff, { weekday: "long", day: "numeric", month: "long" });
+    const key = dateKey(f.kickoff, viewer.timeZone);
     const last = groups[groups.length - 1];
-    if (last && last.day === day) last.items.push(f);
-    else groups.push({ day, items: [f] });
+    if (last && last.key === key) last.items.push(f);
+    else groups.push({ key, day: formatDay(f.kickoff, { weekday: "long", day: "numeric", month: "long" }, viewer), items: [f] });
   }
   return (
     <div className="space-y-5">
       {groups.map((g) => (
-        <div key={g.day}>
+        <div key={g.key}>
           <h4 className="mb-2 text-xs font-bold text-muted">{g.day}</h4>
           <div className="space-y-2">
             {g.items.map((f) => (
@@ -58,6 +60,7 @@ export default function LeagueDataTabs({
 }) {
   const reduce = useReducedMotion();
   const baseId = useId();
+  const viewer = useViewer();
   const live = fixtures.filter((f) => f.status === "live");
   const results = fixtures.filter((f) => f.status === "finished").sort((a, b) => +new Date(b.kickoff) - +new Date(a.kickoff));
   const upcoming = fixtures.filter((f) => f.status === "upcoming").sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
@@ -78,7 +81,8 @@ export default function LeagueDataTabs({
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/fixtures?date=${value}&league=${league}`);
+      // tz makes "that day" the visitor's local day rather than the UTC one.
+      const res = await fetch(`/api/fixtures?date=${value}&league=${league}&tz=${encodeURIComponent(viewer.timeZone)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not load that date.");
       setDayFixtures(data.fixtures ?? []);
@@ -188,7 +192,7 @@ export default function LeagueDataTabs({
             {!loading && dayFixtures && (
               <>
                 <p className="mb-3 text-sm font-semibold text-ink">
-                  {formatDay(`${date}T12:00:00Z`, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  {formatDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }, viewer)}
                 </p>
                 {dayFixtures.length > 0 ? (
                   <div className="space-y-2">
