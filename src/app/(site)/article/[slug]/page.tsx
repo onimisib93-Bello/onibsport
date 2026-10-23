@@ -204,7 +204,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               <div className="border-t border-line pt-6">
                 <ShareBar title={article.title} path={`/article/${article.slug}`} />
               </div>
-              <AdSlot variant="leaderboard" />
+              <AdSlot placement="article-end" />
             </div>
           </div>
 
@@ -238,7 +238,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                   </ul>
                 </div>
               )}
-              <AdSlot variant="rectangle" />
+              <AdSlot placement="article-sidebar" />
             </div>
           </aside>
         </div>

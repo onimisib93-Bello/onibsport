@@ -41,7 +41,7 @@ export default async function VideosPage() {
       </section>
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6">
         <VideoGallery videos={videos} />
-        <AdSlot variant="leaderboard" className="mt-14" />
+        <AdSlot placement="videos" className="mt-14" />
       </div>
     </>
   );

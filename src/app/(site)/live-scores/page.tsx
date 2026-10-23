@@ -74,7 +74,7 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
       {(view !== "date" || date === today) && <AutoRefresh />}
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <LiveScoresView fixtures={fixtures} categories={scoreCategories} date={date} today={today} league={league} view={view} />
-        <AdSlot variant="leaderboard" className="mt-12" />
+        <AdSlot placement="scores" className="mt-12" />
       </div>
     </>
   );

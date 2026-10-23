@@ -104,3 +104,27 @@ model Video {
 
   @@index([published, createdAt])
 }
+
+/// A banner in one or more of the site's ad spaces (see src/lib/ads.ts).
+model Ad {
+  id             String    @id @default(cuid())
+  /// Advertiser or campaign name, shown only in the admin.
+  name           String
+  /// "leaderboard" (wide), "rectangle" (box) or "sidebar" (tall).
+  size           String
+  imageUrl       String
+  /// Optional narrower banner for phones, for wide banners.
+  mobileImageUrl String?
+  linkUrl        String
+  altText        String    @default("")
+  /// Placement ids from src/lib/ads.ts.
+  placements     String[]
+  startsAt       DateTime?
+  endsAt         DateTime?
+  active         Boolean   @default(true)
+  clicks         Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([active])
+}
