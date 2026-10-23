@@ -7,12 +7,18 @@ import { hlGet } from "@/lib/live/highlightly";
 /**
  * Real NPFL results, fixtures and table from Highlightly (the free scores
  * feed doesn't cover Nigeria). The whole season's fixture list and the table
- * are each fetched every 6 hours, about 16 of the free plan's 100 daily
- * requests, so NPFL results can be up to 6 hours behind.
+ * are each fetched every 12 hours, about 10 of the free plan's 100 daily
+ * requests (the rest is kept for match pages), so NPFL results can be up to
+ * 12 hours behind. After a failure it waits 15 minutes before trying again,
+ * so a busy day can't drain the allowance.
  */
 
 const NPFL_LEAGUE_ID = 340333;
-const SIX_HOURS = 6 * 3600;
+const REFRESH_SECONDS = 12 * 3600;
+const RETRY_AFTER_MS = 15 * 60_000;
+/** When the last attempt failed; until RETRY_AFTER_MS later, NPFL data is skipped instead of retried. */
+let failedAt = 0;
+const coolingDown = () => Date.now() - failedAt < RETRY_AFTER_MS;
 
 /** Highlightly names a season by the year it ends: 2026/27 is "2027". */
 export function currentNpflSeason(now = new Date()) {
@@ -54,7 +60,7 @@ const getSeasonMatches = unstable_cache(
     return [first, ...rest].flatMap((page) => page.data ?? []);
   },
   ["npfl-season-matches"],
-  { revalidate: SIX_HOURS }
+  { revalidate: REFRESH_SECONDS }
 );
 
 const getSeasonTable = unstable_cache(
@@ -63,7 +69,7 @@ const getSeasonTable = unstable_cache(
     return body.groups?.[0]?.standings ?? [];
   },
   ["npfl-season-table"],
-  { revalidate: SIX_HOURS }
+  { revalidate: REFRESH_SECONDS }
 );
 
 function status(description: string | null | undefined): Fixture["status"] {
@@ -101,6 +107,7 @@ const devSamples = () => !process.env.HIGHLIGHTLY_API_KEY && !process.env.FOOTBA
 /** NPFL results from two weeks back and fixtures three weeks ahead. Empty when unavailable. */
 export async function getNpflFixtures(): Promise<Fixture[]> {
   if (keyMissing()) return devSamples() ? mockFixtures.filter((f) => f.league === "npfl") : [];
+  if (coolingDown()) return [];
   try {
     const from = Date.now() - 14 * 86_400_000;
     const to = Date.now() + 21 * 86_400_000;
@@ -112,6 +119,7 @@ export async function getNpflFixtures(): Promise<Fixture[]> {
       .map(toFixture)
       .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
   } catch (error) {
+    failedAt = Date.now();
     console.warn("NPFL fixtures unavailable:", error instanceof Error ? error.message : error);
     return [];
   }
@@ -119,12 +127,13 @@ export async function getNpflFixtures(): Promise<Fixture[]> {
 
 /** One NPFL match by its "hl-…" id, from the cached season list. */
 export async function getNpflMatch(id: string): Promise<Fixture | null> {
-  if (keyMissing()) return null;
+  if (keyMissing() || coolingDown()) return null;
   const raw = id.replace(/^hl-/, "");
   try {
     const match = (await getSeasonMatches(currentNpflSeason())).find((m) => String(m.id) === raw);
     return match ? toFixture(match) : null;
   } catch {
+    failedAt = Date.now();
     return null;
   }
 }
@@ -132,6 +141,7 @@ export async function getNpflMatch(id: string): Promise<Fixture | null> {
 /** The current NPFL table. Undefined when unavailable. */
 export async function getNpflStandings(): Promise<StandingRow[] | undefined> {
   if (keyMissing()) return devSamples() ? mockStandings.npfl : undefined;
+  if (coolingDown()) return undefined;
   try {
     const rows = await getSeasonTable(currentNpflSeason());
     if (!rows.length) return undefined;
@@ -148,6 +158,7 @@ export async function getNpflStandings(): Promise<StandingRow[] | undefined> {
         goalsAgainst: r.total.receivedGoals,
       }));
   } catch (error) {
+    failedAt = Date.now();
     console.warn("NPFL table unavailable:", error instanceof Error ? error.message : error);
     return undefined;
   }

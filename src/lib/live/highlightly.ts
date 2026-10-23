@@ -25,8 +25,18 @@ const LEAGUE_IDS: Partial<Record<CategorySlug, number>> = {
   npfl: 340333,
 };
 
-/** Requests left today, from the last response this server saw. */
-let remainingToday: number | null = null;
+/**
+ * Once the daily allowance is (nearly) used up, stop asking until it resets
+ * at midnight UTC. Otherwise every page view would retry a request that is
+ * bound to be refused, slowing pages down for nothing.
+ */
+let blockedUntil = 0;
+
+function nextMidnightUtc() {
+  const d = new Date();
+  d.setUTCHours(24, 0, 0, 0);
+  return d.getTime();
+}
 
 class QuotaError extends Error {}
 
@@ -38,12 +48,16 @@ class QuotaError extends Error {}
 export async function hlGet<T>(path: string): Promise<T | null> {
   const key = process.env.HIGHLIGHTLY_API_KEY;
   if (!key) return null;
-  if (remainingToday != null && remainingToday <= 3) throw new QuotaError("Highlightly daily limit nearly used");
+  if (Date.now() < blockedUntil) throw new QuotaError("Highlightly daily limit reached; waiting for the midnight UTC reset");
 
   const res = await fetch(`${BASE}${path}`, { headers: { "x-rapidapi-key": key }, cache: "no-store" });
   const left = Number(res.headers.get("x-ratelimit-requests-remaining"));
-  if (res.headers.has("x-ratelimit-requests-remaining") && Number.isFinite(left)) remainingToday = left;
-  if (res.status === 429) throw new QuotaError("Highlightly rate limit");
+  // Keep the last few requests in reserve.
+  if (res.headers.has("x-ratelimit-requests-remaining") && Number.isFinite(left) && left <= 3) blockedUntil = nextMidnightUtc();
+  if (res.status === 429) {
+    blockedUntil = nextMidnightUtc();
+    throw new QuotaError("Highlightly daily limit reached");
+  }
   if (res.status >= 500) throw new Error(`Highlightly ${res.status}`);
   if (!res.ok) {
     console.warn("Highlightly refused", path, res.status, (await res.text().catch(() => "")).slice(0, 300));
