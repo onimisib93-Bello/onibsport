@@ -25,6 +25,7 @@ export type ScoresView = "date" | "results" | "fixtures";
  */
 export default function LiveScoresView({
   fixtures: around,
+  nearby = [],
   categories,
   pickedDate,
   today: serverToday,
@@ -32,6 +33,8 @@ export default function LiveScoresView({
   view,
 }: {
   fixtures: Fixture[];
+  /** Kick-off times a week either side, to suggest the nearest days with matches. */
+  nearby?: { kickoff: string; league: string }[];
   categories: Category[];
   pickedDate: string | null;
   today: string;
@@ -46,6 +49,11 @@ export default function LiveScoresView({
   const today = viewer.today ?? serverToday;
   const date = pickedDate ?? today;
   const fixtures = view === "date" ? around.filter((f) => dateKey(f.kickoff, viewer.timeZone) === date) : around;
+  // The nearest local days before and after this one that have matches (in the chosen league).
+  const matchDays = (() => {
+    const days = [...new Set(nearby.filter((n) => league === "all" || n.league === league).map((n) => dateKey(n.kickoff, viewer.timeZone)))].sort();
+    return { prev: days.filter((d) => d < date).pop(), next: days.find((d) => d > date) };
+  })();
 
   function go(next: Partial<{ date: string; league: string; view: ScoresView }>) {
     const params = new URLSearchParams();
@@ -229,12 +237,23 @@ export default function LiveScoresView({
               <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-line">
                 <p className="font-display text-3xl font-black text-ink">No matches</p>
                 <p className="mt-2 text-muted">
-                  {view === "date" ? "Nothing scheduled in these competitions on this day. Try the next matchday." : "Nothing to show for this filter yet."}
+                  {view === "date" ? "Nothing scheduled in these competitions on this day." : "Nothing to show for this filter yet."}
                 </p>
                 {view === "date" && (
-                  <button type="button" onClick={() => go({ date: shift(date, 1) })} className="mt-4 cursor-pointer rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo">
-                    Check the next day
-                  </button>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {matchDays.prev && (
+                      <button type="button" onClick={() => go({ date: matchDays.prev })} className="cursor-pointer rounded-full bg-white px-5 py-2.5 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink">
+                        Last matches: {formatDate(matchDays.prev, { weekday: "short", day: "numeric", month: "short" }, viewer)}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => go({ date: matchDays.next ?? shift(date, 1) })}
+                      className="cursor-pointer rounded-full bg-night px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo"
+                    >
+                      {matchDays.next ? `Next matches: ${formatDate(matchDays.next, { weekday: "short", day: "numeric", month: "short" }, viewer)}` : "Check the next day"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}

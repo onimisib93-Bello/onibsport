@@ -42,6 +42,8 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
   const league = rawLeague && categories.some((c) => c.slug === rawLeague) ? rawLeague : "all";
 
   let fixtures;
+  // Kick-off times around the picked day, so an empty day can point to the nearest days with matches.
+  let nearby: { kickoff: string; league: string }[] = [];
   if (view === "results") {
     fixtures = (await getFixturesForRange(shift(today, -7), today))
       .filter((f) => f.status === "finished")
@@ -52,7 +54,9 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
       .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
   } else {
     // A local day overlaps three UTC days; LiveScoresView keeps the visitor's own.
-    fixtures = await getFixturesForRange(shift(date, -1), shift(date, 1));
+    const wide = await getFixturesForRange(shift(date, -7), shift(date, 10));
+    fixtures = wide.filter((f) => f.kickoff.slice(0, 10) >= shift(date, -1) && f.kickoff.slice(0, 10) <= shift(date, 1));
+    nearby = wide.map((f) => ({ kickoff: f.kickoff, league: f.league }));
   }
 
   const scoreCategories = categories.filter((c) => SCORE_LEAGUES.includes(c.slug));
@@ -71,7 +75,7 @@ export default async function LiveScoresPage({ searchParams }: { searchParams: P
       {/* Keep today's scores and the results/fixtures views current while the page is open. */}
       {(view !== "date" || (date >= shift(today, -1) && date <= shift(today, 1))) && <AutoRefresh />}
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <LiveScoresView fixtures={fixtures} categories={scoreCategories} pickedDate={pickedDate} today={today} league={league} view={view} />
+        <LiveScoresView fixtures={fixtures} nearby={nearby} categories={scoreCategories} pickedDate={pickedDate} today={today} league={league} view={view} />
         <AdSlot placement="scores" className="mt-12" />
       </div>
     </>

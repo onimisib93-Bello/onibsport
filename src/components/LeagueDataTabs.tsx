@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CalendarBlank, X } from "@phosphor-icons/react/dist/ssr";
 import { Fixture, StandingRow } from "@/lib/types";
+import type { TopScorer } from "@/lib/live/footballData";
+import Crest from "@/components/ui/Crest";
 import MatchCard from "@/components/MatchCard";
 import StandingsTable from "@/components/StandingsTable";
 import LiveDot from "@/components/ui/LiveDot";
@@ -11,7 +13,7 @@ import { dateKey, formatDate, formatDay } from "@/lib/time";
 import { useViewer } from "@/lib/useViewer";
 import { cn } from "@/lib/utils";
 
-type Tab = "results" | "fixtures" | "table";
+type Tab = "results" | "fixtures" | "table" | "scorers";
 
 const PAGE = 8;
 
@@ -41,20 +43,73 @@ export function DayGroups({ fixtures, showLeague = false }: { fixtures: Fixture[
   );
 }
 
+function ScorersTable({ scorers, accent }: { scorers: TopScorer[]; accent: string }) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+      <table className="w-full text-sm">
+        <caption className="sr-only">Top scorers this season</caption>
+        <thead>
+          <tr className="border-b border-line text-left text-xs font-semibold text-muted">
+            <th scope="col" className="w-10 py-3 pl-4">
+              #
+            </th>
+            <th scope="col" className="py-3">
+              Player
+            </th>
+            <th scope="col" className="w-12 py-3 text-center">
+              <abbr title="Assists" className="no-underline">
+                A
+              </abbr>
+            </th>
+            <th scope="col" className="w-14 py-3 pr-4 text-right">
+              Goals
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {scorers.map((s, i) => (
+            <tr key={`${s.player}-${s.team}`} className="border-b border-line last:border-0">
+              <td className="py-2.5 pl-4 font-display text-lg font-bold tabular-nums" style={{ color: i < 3 ? accent : undefined }}>
+                {i + 1}
+              </td>
+              <th scope="row" className="py-2.5 pr-2 text-left font-normal">
+                <span className="block font-semibold text-ink">{s.player}</span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                  <Crest name={s.team} src={s.crest} size={14} />
+                  {s.team}
+                  {s.nationality && <span className="text-muted/80">· {s.nationality}</span>}
+                </span>
+              </th>
+              <td className="py-2.5 text-center tabular-nums text-ink/70">{s.assists ?? "–"}</td>
+              <td className="py-2.5 pr-4 text-right font-display text-xl font-black tabular-nums text-ink">{s.goals}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
- * A league's match centre: live games pinned on top, then results, fixtures
- * and the table in tabs, plus a date search that loads any single day.
+ * A league's match centre: live games pinned on top, then results, fixtures,
+ * the table and top scorers in tabs, plus a date search that loads any single
+ * day. `showLeague` is for cross-league hubs (World Football): match cards
+ * show their competition and the date search covers every league.
  */
 export default function LeagueDataTabs({
   league,
   fixtures,
   standings,
+  scorers = [],
+  showLeague = false,
   accent = "#2d1b69",
   initialTab,
 }: {
   league: string;
   fixtures: Fixture[];
   standings?: StandingRow[];
+  scorers?: TopScorer[];
+  showLeague?: boolean;
   accent?: string;
   initialTab?: Tab;
 }) {
@@ -65,7 +120,7 @@ export default function LeagueDataTabs({
   const results = fixtures.filter((f) => f.status === "finished").sort((a, b) => +new Date(b.kickoff) - +new Date(a.kickoff));
   const upcoming = fixtures.filter((f) => f.status === "upcoming").sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
 
-  const [tab, setTab] = useState<Tab>(initialTab ?? (results.length > 0 ? "results" : "fixtures"));
+  const [tab, setTab] = useState<Tab>(initialTab ?? (results.length > 0 ? "results" : upcoming.length > 0 ? "fixtures" : standings?.length ? "table" : "results"));
   const [shown, setShown] = useState(PAGE);
   const [date, setDate] = useState("");
   const [dayFixtures, setDayFixtures] = useState<Fixture[] | null>(null);
@@ -82,7 +137,8 @@ export default function LeagueDataTabs({
     setLoading(true);
     try {
       // tz makes "that day" the visitor's local day rather than the UTC one.
-      const res = await fetch(`/api/fixtures?date=${value}&league=${league}&tz=${encodeURIComponent(viewer.timeZone)}`);
+      const leagueParam = showLeague ? "" : `&league=${league}`;
+      const res = await fetch(`/api/fixtures?date=${value}${leagueParam}&tz=${encodeURIComponent(viewer.timeZone)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not load that date.");
       setDayFixtures(data.fixtures ?? []);
@@ -98,6 +154,7 @@ export default function LeagueDataTabs({
     { id: "results", label: "Results", show: true },
     { id: "fixtures", label: "Fixtures", show: true },
     { id: "table", label: "Table", show: !!standings && standings.length > 0 },
+    { id: "scorers", label: "Top scorers", show: scorers.length > 0 },
   ];
   const list = tab === "results" ? results : upcoming;
 
@@ -111,7 +168,7 @@ export default function LeagueDataTabs({
           </p>
           <div className="space-y-2">
             {live.map((f) => (
-              <MatchCard key={f.id} fixture={f} />
+              <MatchCard key={f.id} fixture={f} showLeague={showLeague} />
             ))}
           </div>
         </div>
@@ -197,7 +254,7 @@ export default function LeagueDataTabs({
                 {dayFixtures.length > 0 ? (
                   <div className="space-y-2">
                     {dayFixtures.map((f) => (
-                      <MatchCard key={f.id} fixture={f} />
+                      <MatchCard key={f.id} fixture={f} showLeague={showLeague} />
                     ))}
                   </div>
                 ) : (
@@ -206,10 +263,10 @@ export default function LeagueDataTabs({
               </>
             )}
 
-            {!loading && !dayFixtures && tab !== "table" && (
+            {!loading && !dayFixtures && (tab === "results" || tab === "fixtures") && (
               <>
                 {list.length > 0 ? (
-                  <DayGroups fixtures={list.slice(0, shown)} />
+                  <DayGroups fixtures={list.slice(0, shown)} showLeague={showLeague} />
                 ) : (
                   <p className="rounded-xl bg-white p-4 text-sm text-muted ring-1 ring-line">
                     {tab === "results" ? "No results in the last two weeks. Search a date to look further back." : "No fixtures scheduled in the next three weeks yet."}
@@ -227,7 +284,9 @@ export default function LeagueDataTabs({
               </>
             )}
 
-            {!loading && !dayFixtures && tab === "table" && standings && <StandingsTable rows={standings} accent={accent} />}
+            {!loading && !dayFixtures && tab === "table" && standings && <StandingsTable rows={standings} accent={accent} league={league} />}
+
+            {!loading && !dayFixtures && tab === "scorers" && <ScorersTable scorers={scorers} accent={accent} />}
           </motion.div>
         </AnimatePresence>
       </div>

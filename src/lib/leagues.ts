@@ -63,8 +63,8 @@ export const leagueThemes: Record<CategorySlug, LeagueTheme> = {
     onTint: "#061234",
     crest: "UCL",
     region: "Europe",
-    blurb: "European nights: group stages, knockout drama and the road to the final.",
-    hasTable: false,
+    blurb: "European nights: the league phase, knockout drama and the road to the final.",
+    hasTable: true,
   },
   "nigeria-football": {
     deep: "#003d24",

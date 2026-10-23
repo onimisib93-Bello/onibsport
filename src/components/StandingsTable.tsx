@@ -1,6 +1,7 @@
 import { StandingRow } from "@/lib/types";
 import Crest from "@/components/ui/Crest";
 import { cn } from "@/lib/utils";
+import { resolveZones, zonesFor, type TableZone } from "@/lib/tableZones";
 
 type Ranked = StandingRow & { points: number; goalDiff: number; position: number };
 
@@ -12,12 +13,6 @@ function rank(rows: StandingRow[]): Ranked[] {
 }
 
 const gd = (n: number) => (n > 0 ? `+${n}` : String(n));
-
-function zone(position: number, total: number): "top" | "bottom" | null {
-  if (position <= 4) return "top";
-  if (total >= 10 && position > total - 3) return "bottom";
-  return null;
-}
 
 const FORM_STYLE: Record<string, string> = {
   W: "bg-[#1f9d5c] text-white",
@@ -39,11 +34,28 @@ function Form({ form }: { form?: string }) {
   );
 }
 
-/** Full league table with qualification and relegation zones; `highlight` marks teams (e.g. the two in a match). */
-export default function StandingsTable({ rows, accent = "#2d1b69", highlight = [] }: { rows: StandingRow[]; accent?: string; highlight?: string[] }) {
+/**
+ * Full league table with that league's qualification and relegation bands
+ * (`league` picks them; see tableZones.ts). `highlight` marks teams, e.g.
+ * the two in a match.
+ */
+export default function StandingsTable({
+  rows,
+  accent = "#2d1b69",
+  highlight = [],
+  league,
+  zones,
+}: {
+  rows: StandingRow[];
+  accent?: string;
+  highlight?: string[];
+  league?: string;
+  zones?: TableZone[];
+}) {
   const sorted = rank(rows);
   const showForm = sorted.some((r) => r.form);
-  const hasBottom = sorted.length >= 10;
+  const bands = resolveZones(zones ?? zonesFor(league), sorted.length, accent);
+  const bandFor = (position: number) => bands.find((z) => position >= z.from && position <= z.to);
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
@@ -89,7 +101,7 @@ export default function StandingsTable({ rows, accent = "#2d1b69", highlight = [
           </thead>
           <tbody>
             {sorted.map((r) => {
-              const z = zone(r.position, sorted.length);
+              const z = bandFor(r.position);
               const hl = highlight.includes(r.team);
               const cellBg = hl ? "bg-[#efecfb]" : "bg-white";
               return (
@@ -99,7 +111,8 @@ export default function StandingsTable({ rows, accent = "#2d1b69", highlight = [
                       <span
                         aria-hidden="true"
                         className="h-6 w-1 rounded-full"
-                        style={{ background: z === "top" ? accent : z === "bottom" ? "#d23b3b" : "transparent" }}
+                        style={{ background: z?.color ?? "transparent" }}
+                        title={z?.label}
                       />
                       <span className="w-5 font-display text-lg font-bold tabular-nums text-ink">{r.position}</span>
                     </span>
@@ -129,16 +142,12 @@ export default function StandingsTable({ rows, accent = "#2d1b69", highlight = [
         </table>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line px-4 py-2.5 text-xs text-muted">
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden="true" className="h-3 w-1 rounded-full" style={{ background: accent }} />
-          Top four
-        </span>
-        {hasBottom && (
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-3 w-1 rounded-full bg-[#d23b3b]" />
-            Relegation zone
+        {bands.map((z) => (
+          <span key={z.label} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-3 w-1 rounded-full" style={{ background: z.color }} />
+            {z.label}
           </span>
-        )}
+        ))}
       </div>
     </div>
   );

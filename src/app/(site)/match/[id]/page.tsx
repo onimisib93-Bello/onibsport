@@ -185,7 +185,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       label: "Table",
       content: (
         <div className="-m-5 sm:-m-8">
-          <StandingsTable rows={standings} accent={leagueThemes[f.league]?.deep} highlight={[f.home, f.away]} />
+          <StandingsTable rows={standings} accent={leagueThemes[f.league]?.deep} highlight={[f.home, f.away]} league={f.league} />
         </div>
       ),
     });
