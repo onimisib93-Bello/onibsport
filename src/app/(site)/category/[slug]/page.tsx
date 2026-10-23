@@ -167,7 +167,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
             ) : (
               <TrendingSidebar articles={articles.slice(0, 6)} title={`More ${category.shortName}`} />
             )}
-            <AdSlot variant="sidebar" />
+            <AdSlot placement="hub-sidebar" />
           </aside>
         </div>
       </div>

@@ -1,41 +1,42 @@
-import Image from "next/image";
 import { Megaphone } from "@phosphor-icons/react/dist/ssr";
+import { AD_SIZES, placementSize, type AdPlacement, type AdSize, type ServedAd } from "@/lib/ads";
+import { getAdFor } from "@/lib/data/db-ads";
+import NewsImage from "@/components/ui/NewsImage";
 
-export type AdVariant = "leaderboard" | "rectangle" | "sidebar";
-
-const sizes: Record<AdVariant, { aspect: string; label: string }> = {
-  leaderboard: { aspect: "aspect-[8/1] sm:aspect-[728/90]", label: "728×90" },
-  rectangle: { aspect: "aspect-[300/250]", label: "300×250" },
-  sidebar: { aspect: "aspect-[300/600]", label: "300×600" },
-};
-
-interface AdSlotProps {
-  variant?: AdVariant;
-  /** Once you have a real banner (your own brand promo, or a paid/affiliate creative), pass its image + destination here. */
-  imageSrc?: string;
-  imageAlt?: string;
-  href?: string;
-  className?: string;
+/** A banner that links through the click counter. Shown whole on a white card, never cropped. */
+export function AdBanner({ ad, size, className = "" }: { ad: ServedAd; size: AdSize; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="mb-1 text-[11px] font-semibold text-muted">Advertisement</p>
+      <a href={`/go/ad/${ad.id}`} target="_blank" rel="noopener sponsored" className="block overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+        {ad.mobileImageUrl && (
+          <NewsImage src={ad.mobileImageUrl} alt={ad.altText || "Advertisement"} width={640} height={200} sizes="100vw" className="block h-auto w-full sm:hidden" />
+        )}
+        <span className={`relative w-full ${AD_SIZES[size].aspect} ${ad.mobileImageUrl ? "hidden sm:block" : "block"}`}>
+          <NewsImage
+            src={ad.imageUrl}
+            alt={ad.altText || "Advertisement"}
+            fill
+            sizes={size === "leaderboard" ? "(min-width: 1400px) 1400px, 100vw" : "300px"}
+            className="object-contain"
+          />
+        </span>
+      </a>
+    </div>
+  );
 }
 
 /**
- * Placeholder ad unit. Swap the empty-state branch for a real ad network
- * snippet (e.g. Google AdSense's <ins> tag) or pass imageSrc/href for a
- * direct-sold or affiliate banner.
+ * One ad space. Shows the ad switched on for this placement in the admin
+ * (Admin → Ads); when there isn't one, an "Advertise here" box that emails the
+ * team. Clicks go through /go/ad/[id], which counts them before redirecting.
  */
-export default function AdSlot({ variant = "rectangle", imageSrc, imageAlt, href, className = "" }: AdSlotProps) {
-  const { aspect, label } = sizes[variant];
+export default async function AdSlot({ placement, className = "" }: { placement: AdPlacement; className?: string }) {
+  const size = placementSize(placement);
+  const { aspect, dims } = AD_SIZES[size];
+  const ad = await getAdFor(placement);
 
-  if (imageSrc && href) {
-    return (
-      <div className={className}>
-        <p className="mb-1 text-[11px] font-semibold text-muted">Advertisement</p>
-        <a href={href} target="_blank" rel="noopener noreferrer sponsored" className={`relative block w-full overflow-hidden rounded-2xl ${aspect}`}>
-          <Image src={imageSrc} alt={imageAlt ?? "Advertisement"} fill sizes="100vw" className="object-cover" />
-        </a>
-      </div>
-    );
-  }
+  if (ad) return <AdBanner ad={ad} size={size} className={className} />;
 
   return (
     <div className={className}>
@@ -46,7 +47,7 @@ export default function AdSlot({ variant = "rectangle", imageSrc, imageAlt, href
       >
         <Megaphone size={24} weight="light" className="text-muted" />
         <span className="px-4 text-xs font-semibold text-muted">Advertise your brand here</span>
-        <span className="text-[11px] text-muted/70">{label}</span>
+        <span className="text-[11px] text-muted/70">{dims}</span>
       </a>
     </div>
   );

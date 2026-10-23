@@ -77,7 +77,7 @@ export default async function Home() {
       <ScoresStrip initial={scoreboard} />
 
       <div className="mx-auto max-w-[1400px] px-4 pt-10 sm:px-6">
-        <AdSlot variant="leaderboard" />
+        <AdSlot placement="home-top" />
       </div>
 
       {river.length > 0 && (
@@ -96,7 +96,7 @@ export default async function Home() {
             </div>
             <div className="space-y-6 lg:sticky lg:top-36 lg:self-start">
               <TrendingSidebar articles={trending} />
-              <AdSlot variant="sidebar" />
+              <AdSlot placement="home-sidebar" />
             </div>
           </div>
         </section>
@@ -128,7 +128,7 @@ export default async function Home() {
       )}
 
       <div className="mx-auto max-w-[1400px] px-4 pb-6 sm:px-6">
-        <AdSlot variant="leaderboard" />
+        <AdSlot placement="home-bottom" />
       </div>
     </>
   );

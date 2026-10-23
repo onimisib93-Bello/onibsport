@@ -217,7 +217,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             More scores from this day
           </Link>
         </div>
-        <AdSlot variant="leaderboard" className="mt-12" />
+        <AdSlot placement="match" className="mt-12" />
       </div>
     </>
   );
