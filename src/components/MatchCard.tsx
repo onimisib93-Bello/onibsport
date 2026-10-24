@@ -20,6 +20,14 @@ function StatusLabel({ fixture, showDate }: { fixture: Fixture; showDate?: boole
   if (fixture.status === "finished") {
     return <span className="text-xs font-semibold text-muted">{showDate ? <LocalTime iso={fixture.kickoff} day={{ day: "numeric", month: "short" }} time={false} /> : "FT"}</span>;
   }
+  if (fixture.pending) {
+    return (
+      <span className="flex flex-col text-xs font-semibold leading-tight text-muted" title="Kicked off; waiting for the scores feed to update">
+        <span>Score</span>
+        <span>pending</span>
+      </span>
+    );
+  }
   return (
     <span className="flex flex-col text-xs font-semibold leading-tight text-muted">
       {showDate && <LocalTime iso={fixture.kickoff} day={{ weekday: "short", day: "numeric" }} time={false} />}

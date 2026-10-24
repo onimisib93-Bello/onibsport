@@ -51,6 +51,8 @@ export interface Fixture {
   minute: number | null;
   /** Half-time break in a live match. */
   paused?: boolean;
+  /** Kick-off has passed but the scores feed hasn't reported the match as started yet. */
+  pending?: boolean;
   status: FixtureStatus;
   kickoff: string;
   homeCrest?: string;
