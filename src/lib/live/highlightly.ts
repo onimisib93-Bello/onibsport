@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { CategorySlug } from "@/lib/types";
+import { CategorySlug, Fixture } from "@/lib/types";
 
 /**
  * Match details (scorers, cards, substitutions, line-ups and team stats) from
@@ -115,6 +115,82 @@ function nameScore(a: string, b: string): number {
   if (!ta.length || !tb.length) return 0;
   const hits = ta.filter((x) => tb.some((y) => x === y || (x.length >= 3 && y.startsWith(x)) || (y.length >= 3 && x.startsWith(y)))).length;
   return hits / Math.min(ta.length, tb.length);
+}
+
+/* ---------- Filling in results the scores feed is missing ---------- */
+
+interface DayResult {
+  home: string;
+  away: string;
+  ts: number;
+  description: string;
+  score: string | null;
+  clock: number | null;
+}
+
+/** A league's matches on one day with their state and score, cached for an hour. */
+const getDayResults = unstable_cache(
+  async (leagueId: number, date: string): Promise<DayResult[] | null> => {
+    const body = await hlGet<{
+      data?: (RawMatchSummary & { state?: { clock?: number | null; description?: string | null; score?: { current?: string | null } | null } | null })[];
+    }>(`/matches?leagueId=${leagueId}&date=${date}&timezone=UTC&limit=100`);
+    return (
+      body?.data?.map((m) => ({
+        home: m.homeTeam.name,
+        away: m.awayTeam.name,
+        ts: Date.parse(m.date),
+        description: m.state?.description ?? "",
+        score: m.state?.score?.current ?? null,
+        clock: m.state?.clock ?? null,
+      })) ?? null
+    );
+  },
+  ["highlightly-day-results"],
+  { revalidate: 3600 }
+);
+
+/**
+ * The free scores feed sometimes never reports a match as started. For any
+ * match still "not started" two hours after kick-off, look its result up on
+ * Highlightly instead: one request per league per day at most once an hour,
+ * and only when such a match exists, so it costs nothing on normal days.
+ */
+export async function fillMissingResults(fixtures: Fixture[]): Promise<Fixture[]> {
+  if (!process.env.HIGHLIGHTLY_API_KEY) return fixtures;
+  const cutoff = Date.now() - 2 * 3600_000;
+  const stale = new Set(fixtures.filter((f) => f.pending && LEAGUE_IDS[f.league] && Date.parse(f.kickoff) < cutoff));
+  if (!stale.size) return fixtures;
+
+  const keyOf = (f: Fixture) => `${f.league}|${f.kickoff.slice(0, 10)}`;
+  const lists = new Map<string, DayResult[]>();
+  await Promise.all(
+    [...new Set([...stale].map(keyOf))].map(async (key) => {
+      const [league, date] = key.split("|");
+      try {
+        const list = await getDayResults(LEAGUE_IDS[league as CategorySlug]!, date);
+        if (list) lists.set(key, list);
+      } catch {
+        // Daily limit reached or Highlightly down: keep showing "score pending".
+      }
+    })
+  );
+
+  return fixtures.map((f) => {
+    const list = stale.has(f) ? lists.get(keyOf(f)) : undefined;
+    if (!list) return f;
+    const ts = Date.parse(f.kickoff);
+    const best = list
+      .map((r) => ({ r, score: nameScore(f.home, r.home) + nameScore(f.away, r.away) + (Math.abs(r.ts - ts) < 3 * 3600_000 ? 0.5 : 0) }))
+      .sort((a, b) => b.score - a.score)[0];
+    if (!best || best.score < 1.2) return f;
+    const [home, away] = (best.r.score ?? "").split("-").map((x) => Number(x.trim()));
+    if (!Number.isFinite(home) || !Number.isFinite(away)) return f;
+    const state = best.r.description.toLowerCase();
+    const finished = state.startsWith("finished") || state.includes("after extra") || state.includes("after penalties");
+    const live = !finished && /half|extra time|penalties|break|in progress/.test(state);
+    if (!finished && !live) return f;
+    return { ...f, homeScore: home, awayScore: away, status: finished ? "finished" : "live", minute: live ? best.r.clock : null, pending: undefined };
+  });
 }
 
 export interface MatchRef {

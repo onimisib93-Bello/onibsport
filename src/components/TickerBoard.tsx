@@ -36,7 +36,9 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
             >
               <LeagueCrest slug={f.league} size={18} />
               <span>{f.home}</span>
-              {f.status === "upcoming" ? (
+              {f.status === "upcoming" && f.pending ? (
+                <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-bold text-white/70">Score pending</span>
+              ) : f.status === "upcoming" ? (
                 <span className="rounded bg-white/10 px-1.5 py-0.5 font-display text-sm font-bold tabular-nums text-white/80">{formatKickoff(f.kickoff, viewer)}</span>
               ) : (
                 <span className={`font-display text-lg font-black leading-none tabular-nums ${f.status === "live" ? "led-glow text-orange" : "text-white"}`}>
@@ -45,7 +47,7 @@ export default function TickerBoard({ initial }: { initial: Scoreboard }) {
               )}
               <span>{f.away}</span>
               <span className="text-[11px] font-medium text-white/50">
-                {f.status === "live" ? <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} /> : f.status === "finished" ? "FT" : zoneLabel(f.kickoff, viewer)}
+                {f.status === "live" ? <LiveMinute kickoff={f.kickoff} paused={f.paused} minute={f.minute} /> : f.status === "finished" ? "FT" : f.pending ? "" : zoneLabel(f.kickoff, viewer)}
               </span>
             </Link>
           ))}

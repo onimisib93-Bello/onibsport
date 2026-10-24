@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { isBot } from "@/lib/analytics/classify";
 import { getMatch, getStandingsForLeague, MatchUnavailableError, type MatchInfo } from "@/lib/live/footballData";
 import { getMatchDetails } from "@/lib/live/highlightly";
 import { searchArticles } from "@/lib/data/db-articles";
@@ -120,7 +122,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     awayNames: [f.away, info.awayName],
   };
   const [details, standings, news] = await Promise.all([
-    getMatchDetails(ref, f.status),
+    // Crawlers get the score without the extra details: those come from Highlightly's
+    // 100-a-day allowance, which is kept for real visitors.
+    isBot((await headers()).get("user-agent") ?? "") ? Promise.resolve(null) : getMatchDetails(ref, f.status),
     leagueThemes[f.league]?.hasTable ? getStandingsForLeague(f.league) : Promise.resolve(undefined),
     relatedNews(info),
   ]);

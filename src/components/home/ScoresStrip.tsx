@@ -54,6 +54,8 @@ function Tile({ f, today, viewer }: { f: Fixture; today: string; viewer: Viewer 
           </span>
         ) : done ? (
           <span className="font-semibold text-white/55">{dayLabel ? `FT, ${dayLabel}` : "Full time"}</span>
+        ) : f.pending ? (
+          <span className="font-semibold text-white/60">Score pending</span>
         ) : (
           <span className="font-display text-base font-bold tabular-nums text-white">
             {dayLabel && <span className="mr-1 font-body text-xs font-semibold text-white/60">{dayLabel}</span>}

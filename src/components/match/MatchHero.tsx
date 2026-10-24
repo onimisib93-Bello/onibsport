@@ -112,7 +112,12 @@ export default function MatchHero({ info, details }: { info: MatchInfo; details:
           <TeamBlock name={f.home} crest={f.homeCrest} side="home" events={events} align="left" />
 
           <div className="flex flex-col items-center pt-3 sm:pt-6">
-            {f.status === "upcoming" ? (
+            {f.status === "upcoming" && f.pending ? (
+              <>
+                <span className="font-display text-4xl font-black text-white/80 sm:text-6xl">Score pending</span>
+                <span className="mt-2 max-w-[16rem] text-center text-xs font-semibold text-white/60">Kicked off. The scores feed hasn&apos;t updated this match yet.</span>
+              </>
+            ) : f.status === "upcoming" ? (
               <>
                 <LocalTime iso={f.kickoff} className="whitespace-nowrap font-display text-5xl font-black tabular-nums sm:text-7xl" />
                 <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/60">

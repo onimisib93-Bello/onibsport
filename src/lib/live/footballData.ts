@@ -4,6 +4,7 @@ import { fixtures as mockFixtures } from "@/lib/data/fixtures";
 import { standings as mockStandings } from "@/lib/data/standings";
 import { dateKey, shiftDate } from "@/lib/time";
 import { currentNpflSeason, getNpflFixtures, getNpflMatch, getNpflStandings } from "@/lib/live/npfl";
+import { fillMissingResults } from "@/lib/live/highlightly";
 
 /**
  * Live scores, fixtures and tables from football-data.org (set
@@ -72,6 +73,7 @@ interface FootballDataMatch {
   referees?: { name?: string; type?: string }[];
   status: string;
   utcDate: string;
+  lastUpdated?: string;
 }
 
 interface FootballDataStandingRow {
@@ -115,7 +117,7 @@ async function fdRequest<T>(path: string): Promise<FdResult<T>> {
 // One cache per refresh rate. Each keeps the last good answer while a refresh fails.
 const tiers = {
   live: unstable_cache(fdRequest, ["football-data", "live"], { revalidate: 60 }),
-  league: unstable_cache(fdRequest, ["football-data", "league"], { revalidate: 300 }),
+  league: unstable_cache(fdRequest, ["football-data", "league"], { revalidate: 120 }),
   table: unstable_cache(fdRequest, ["football-data", "table"], { revalidate: 900 }),
   hourly: unstable_cache(fdRequest, ["football-data", "hourly"], { revalidate: 3600 }),
   settled: unstable_cache(fdRequest, ["football-data", "settled"], { revalidate: 6 * 3600 }),
@@ -167,7 +169,40 @@ function daysBetween(from: string, to: string) {
 
 /* ---------- Matches ---------- */
 
-function toFixture(m: FootballDataMatch, slug: CategorySlug): Fixture {
+/** How far along a match is, so the more up-to-date of two copies can be kept. */
+const PROGRESS: Record<string, number> = { FINISHED: 3, AWARDED: 3, IN_PLAY: 2, PAUSED: 2 };
+
+/** The fresher of two copies of the same match (the feed's lists don't always agree). */
+function fresher(a: FootballDataMatch, b: FootballDataMatch): FootballDataMatch {
+  const pa = PROGRESS[a.status] ?? 0;
+  const pb = PROGRESS[b.status] ?? 0;
+  if (pa !== pb) return pa > pb ? a : b;
+  return (b.lastUpdated ?? "") > (a.lastUpdated ?? "") ? b : a;
+}
+
+/**
+ * The furthest-along copy of each recent match this server has seen. The free
+ * feed sometimes answers from a stale copy (a finished match back to "not
+ * started"); remembering the best copy keeps scores from going backwards.
+ */
+const bestSeen = new Map<number, FootballDataMatch>();
+
+function remember(m: FootballDataMatch): FootballDataMatch {
+  const known = bestSeen.get(m.id);
+  const best = known ? fresher(known, m) : m;
+  bestSeen.set(m.id, best);
+  if (bestSeen.size > 2000) {
+    const old = Date.now() - 3 * 86_400_000;
+    for (const [id, match] of bestSeen) if (Date.parse(match.utcDate) < old) bestSeen.delete(id);
+  }
+  return best;
+}
+
+function toFixture(match: FootballDataMatch, slug: CategorySlug): Fixture {
+  const m = remember(match);
+  const status = STATUS_MAP[m.status] ?? "upcoming";
+  // Not started according to the feed, but kick-off was a while ago: the feed is behind.
+  const pending = status === "upcoming" && (m.status === "TIMED" || m.status === "SCHEDULED") && Date.parse(m.utcDate) < Date.now() - 5 * 60_000;
   return {
     id: String(m.id),
     league: slug,
@@ -179,8 +214,9 @@ function toFixture(m: FootballDataMatch, slug: CategorySlug): Fixture {
     awayScore: m.score?.fullTime?.away ?? null,
     minute: m.minute ?? null,
     paused: m.status === "PAUSED",
+    pending: pending || undefined,
     matchday: m.matchday ?? undefined,
-    status: STATUS_MAP[m.status] ?? "upcoming",
+    status,
     kickoff: m.utcDate,
   };
 }
@@ -189,12 +225,38 @@ function toFixtures(matches: FootballDataMatch[]): Fixture[] {
   return matches.filter((m) => m.competition?.code && SLUG_BY_CODE[m.competition.code]).map((m) => toFixture(m, SLUG_BY_CODE[m.competition!.code!]));
 }
 
-/** Every competition's matches in the shared window, refreshed every minute. */
+function leagueListPath(code: string) {
+  const today = todayIso();
+  return `/competitions/${code}/matches?dateFrom=${shiftDate(today, -14)}&dateTo=${shiftDate(today, 21)}`;
+}
+
+/**
+ * Every competition's matches in the shared window. The combined list
+ * refreshes every minute; each league's own list (every 2 minutes) is merged
+ * in too, because the feed sometimes updates one and not the other. The
+ * fresher copy of each match wins.
+ */
 async function getWindowMatches(): Promise<FootballDataMatch[] | null> {
   const { from, to } = windowBounds();
-  // The /matches endpoint treats dateTo as exclusive.
-  const data = await fd<{ matches: FootballDataMatch[] }>("live", `/matches?competitions=${ALL_CODES}&dateFrom=${from}&dateTo=${shiftDate(to, 1)}`);
-  return data?.matches ?? null;
+  const codes = Object.values(COMPETITION_CODES);
+  const [combined, ...leagues] = await Promise.all([
+    // The /matches endpoint treats dateTo as exclusive.
+    fd<{ matches: FootballDataMatch[] }>("live", `/matches?competitions=${ALL_CODES}&dateFrom=${from}&dateTo=${shiftDate(to, 1)}`),
+    ...codes.map((code) => fd<{ matches: FootballDataMatch[] }>("league", leagueListPath(code))),
+  ]);
+  if (!combined && leagues.every((l) => !l)) return null;
+
+  const inWindow = (m: FootballDataMatch) => m.utcDate.slice(0, 10) >= from && m.utcDate.slice(0, 10) <= to;
+  const byId = new Map<number, FootballDataMatch>();
+  for (const m of combined?.matches ?? []) byId.set(m.id, m);
+  for (const list of leagues) {
+    for (const m of list?.matches ?? []) {
+      if (!inWindow(m)) continue;
+      const known = byId.get(m.id);
+      byId.set(m.id, known ? fresher(known, m) : m);
+    }
+  }
+  return [...byId.values()];
 }
 
 /** Matches on days outside the window, in pieces of at most 10 days. Past days are settled, so they refresh rarely. */
@@ -224,7 +286,9 @@ export async function getFixturesForRange(dateFrom: string, dateTo: string): Pro
   const results = await Promise.all(sources);
   const seen = new Set<number>();
   const matches = results.flatMap((r) => r ?? []).filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
-  const main = results.some((r) => r) ? toFixtures(matches.filter((m) => inRange(m.utcDate))) : sampleFixtures((f) => !!COMPETITION_CODES[f.league] && inRange(f.kickoff));
+  const main = results.some((r) => r)
+    ? await fillMissingResults(toFixtures(matches.filter((m) => inRange(m.utcDate))))
+    : sampleFixtures((f) => !!COMPETITION_CODES[f.league] && inRange(f.kickoff));
 
   const npfl = (await getNpflFixtures()).filter((f) => inRange(f.kickoff));
   const local = sampleFixtures((f) => f.league === "nigeria-football" && inRange(f.kickoff));
@@ -251,17 +315,18 @@ export async function getFixturesForLeague(slug: CategorySlug): Promise<Fixture[
   const code = COMPETITION_CODES[slug];
   if (!code) return sampleFixtures((f) => f.league === slug);
 
-  const today = todayIso();
-  const [league, window] = await Promise.all([
-    fd<{ matches: FootballDataMatch[] }>("league", `/competitions/${code}/matches?dateFrom=${shiftDate(today, -14)}&dateTo=${shiftDate(today, 21)}`),
-    getWindowMatches(),
-  ]);
+  const [league, window] = await Promise.all([fd<{ matches: FootballDataMatch[] }>("league", leagueListPath(code)), getWindowMatches()]);
   if (!league && !window) return sampleFixtures((f) => f.league === slug);
 
   const byId = new Map<number, FootballDataMatch>();
   for (const m of league?.matches ?? []) byId.set(m.id, m);
-  for (const m of window ?? []) if (m.competition?.code === code) byId.set(m.id, m);
-  return [...byId.values()].map((m) => toFixture(m, slug)).sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
+  for (const m of window ?? []) {
+    if (m.competition?.code !== code) continue;
+    const known = byId.get(m.id);
+    byId.set(m.id, known ? fresher(known, m) : m);
+  }
+  const fixtures = [...byId.values()].map((m) => toFixture(m, slug)).sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff));
+  return fillMissingResults(fixtures);
 }
 
 export async function getAllLiveFixtures(): Promise<Fixture[]> {
