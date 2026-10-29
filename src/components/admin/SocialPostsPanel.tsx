@@ -4,7 +4,9 @@ import { useState, useSyncExternalStore } from "react";
 import {
   Check,
   ClipboardText,
+  DownloadSimple,
   FacebookLogo,
+  ImageSquare,
   InstagramLogo,
   LinkSimple,
   ArrowSquareOut,
@@ -19,6 +21,8 @@ import {
   SOCIAL_PLATFORMS,
   buildSocialPrompt,
   fillLink,
+  imageTextFrom,
+  withoutImageText,
   parseSocialSection,
   postLength,
   splitSocialSection,
@@ -41,6 +45,84 @@ const ICONS: Record<SocialPlatform, typeof XLogo> = {
 const noSubscribe = () => () => {};
 
 /**
+ * The one share image for Facebook + Instagram and TikTok photo posts:
+ * 1080 × 1350 portrait, made from the story photo, a teaser and the league.
+ */
+function ShareImage({ photos, tag, initialText }: { photos: { label: string; src: string }[]; tag?: string; initialText: string }) {
+  const [text, setText] = useState(initialText);
+  const [shownText, setShownText] = useState(initialText);
+  const [photo, setPhoto] = useState(photos[0]?.src ?? "");
+  const query = new URLSearchParams({ image: photo, text: shownText, ...(tag ? { tag } : {}) }).toString();
+  const src = `/api/admin/social-image?${query}`;
+
+  return (
+    <div className="mt-5 border-t border-line pt-5">
+      <h3 className="flex items-center gap-2 font-display text-xl font-black text-ink">
+        <ImageSquare size={20} weight="bold" className="text-indigo" aria-hidden="true" />
+        Share image
+      </h3>
+      <p className="mt-1 text-xs text-muted">
+        One image for Facebook, Instagram and TikTok: 1080 × 1350 portrait (4:5). Instagram and Facebook show it full size in the feed; on TikTok it sits between
+        thin bars, and the text is kept clear of TikTok&apos;s buttons.
+      </p>
+      <div className="mt-3 grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a generated PNG from our own route */}
+        <img key={src} src={src} alt="Share image preview" width={1080} height={1350} className="aspect-[4/5] w-full max-w-[200px] rounded-xl bg-paper object-cover ring-1 ring-line" />
+        <div className="space-y-3">
+          {photos.length > 1 && (
+            <div role="radiogroup" aria-label="Photo" className="flex flex-wrap gap-1.5">
+              {photos.map((p) => (
+                <button
+                  key={p.src}
+                  type="button"
+                  role="radio"
+                  aria-checked={photo === p.src}
+                  onClick={() => setPhoto(p.src)}
+                  className={cn(
+                    "cursor-pointer rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+                    photo === p.src ? "bg-night text-white" : "bg-paper text-ink/70 hover:text-ink"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div>
+            <label htmlFor="share-image-text" className="text-xs font-bold text-ink">
+              Teaser on the image
+            </label>
+            <input
+              id="share-image-text"
+              value={text}
+              maxLength={90}
+              onChange={(e) => setText(e.target.value)}
+              onBlur={() => setShownText(text)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setShownText(text);
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink focus:border-indigo focus:outline-none"
+            />
+            <p className="mt-1 text-[11px] text-muted">A question or an unfinished thought, never the answer. Press Enter to update the preview.</p>
+          </div>
+          <a
+            href={`${src}&download=1`}
+            download="onibsport-share-image.png"
+            className="inline-flex items-center gap-1.5 rounded-full bg-night px-4 py-2 text-sm font-bold text-white hover:bg-indigo"
+          >
+            <DownloadSimple size={16} weight="bold" aria-hidden="true" />
+            Download image
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Ready-to-post copy for each network, with the story's tracked link filled
  * in. Posts arrive with a Claude chat reply or an AI Desk draft, or can be
  * written for any story from here.
@@ -49,6 +131,7 @@ export default function SocialPostsPanel({
   slug,
   published,
   article,
+  photos = [],
   aiEnabled,
   kit,
   onKitChange,
@@ -56,6 +139,8 @@ export default function SocialPostsPanel({
   slug: string;
   published: boolean;
   article: { title: string; dek: string; body: string; hub?: string };
+  /** Photos the share image can use, first is the default. */
+  photos?: { label: string; src: string }[];
   aiEnabled: boolean;
   kit: SocialKit | null;
   onKitChange: (kit: SocialKit | null) => void;
@@ -141,8 +226,8 @@ export default function SocialPostsPanel({
       {!kit && (
         <div className="mt-3 space-y-3">
           <p className="text-sm text-muted">
-            Posts for Facebook, X, Instagram, TikTok/Reels, WhatsApp and Threads, each linking back to this story with tracking so you can see which network sends
-            readers.
+            One post for Facebook + Instagram, a TikTok photo post, and posts for X, WhatsApp and Threads, each linking back to this story with tracking so you can
+            see which network sends readers.
           </p>
           <div className="flex flex-wrap gap-2">
             {aiEnabled && (
@@ -222,6 +307,7 @@ export default function SocialPostsPanel({
                   )}
                 >
                   <PIcon size={14} weight="fill" aria-hidden="true" />
+                  {p.id === "facebook" && <InstagramLogo size={14} weight="fill" aria-hidden="true" />}
                   {p.name}
                 </button>
               );
@@ -252,7 +338,7 @@ export default function SocialPostsPanel({
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => copy(text, current.id)}
+                onClick={() => copy(withoutImageText(text), current.id)}
                 className="flex cursor-pointer items-center gap-1.5 rounded-full bg-night px-4 py-2 text-sm font-bold text-white hover:bg-indigo"
               >
                 {copied === current.id ? <Check size={16} weight="bold" className="text-orange" aria-hidden="true" /> : <ClipboardText size={16} weight="bold" aria-hidden="true" />}
@@ -264,13 +350,23 @@ export default function SocialPostsPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => {
-                    if (current.id === "facebook") void copy(text, current.id);
+                    if (current.id === "facebook") void copy(withoutImageText(text), current.id);
                   }}
                   className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink"
                 >
                   <ArrowSquareOut size={16} weight="bold" aria-hidden="true" />
                   {current.shareLabel}
                 </a>
+              )}
+              {current.id === "facebook" && articleUrl && (
+                <button
+                  type="button"
+                  onClick={() => copy(trackedLink(articleUrl, "instagram"), "instagram-link")}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink"
+                >
+                  <InstagramLogo size={16} weight="bold" aria-hidden="true" />
+                  {copied === "instagram-link" ? "Link copied" : "Copy Instagram bio link"}
+                </button>
               )}
               {!current.linkInPost && articleUrl && (
                 <button
@@ -285,6 +381,10 @@ export default function SocialPostsPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {photos.length > 0 && canWrite && (
+        <ShareImage key={imageTextFrom(kit) || article.title} photos={photos} tag={article.hub} initialText={imageTextFrom(kit) || article.title} />
       )}
 
       {error && (

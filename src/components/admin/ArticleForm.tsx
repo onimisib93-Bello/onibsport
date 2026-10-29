@@ -695,6 +695,10 @@ export default function ArticleForm({
           slug={values.slug}
           published={values.status === "PUBLISHED"}
           article={{ title: values.title, dek: values.dek, body: values.body, hub: categoryName }}
+          photos={[
+            ...(values.image ? [{ label: "Lead photo", src: values.image }] : []),
+            ...(values.coverImage && values.coverImage !== values.image ? [{ label: "Share image", src: values.coverImage }] : []),
+          ]}
           aiEnabled={aiEnabled}
           kit={socialKit}
           onKitChange={(kit) => changeSocialKit(kit)}
