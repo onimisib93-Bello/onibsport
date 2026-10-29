@@ -36,7 +36,11 @@ export const SOCIAL_PLATFORMS: PlatformInfo[] = [
     label: "FACEBOOK + INSTAGRAM",
     limit: 2200,
     linkInPost: true,
-    tip: "One post for both: your Facebook and Instagram are linked, so post it once with the share image below. The link is clickable on Facebook; on Instagram it shows as text, so also put the Instagram link in your bio.",
+    // Meta Business Suite posts to the Facebook Page and Instagram together. Facebook's own
+    // share pop-up is avoided: it defaults to a personal profile and often hangs on "Posting".
+    shareUrl: () => "https://business.facebook.com/latest/composer",
+    shareLabel: "Copy & open Meta Business Suite",
+    tip: "One post for both. The post is copied for you: in Meta Business Suite, tick your Facebook Page and Instagram, paste it, and attach the share image below. The link is clickable on Facebook; on Instagram it shows as text, so also put the Instagram link in your bio.",
   },
   {
     id: "x",
