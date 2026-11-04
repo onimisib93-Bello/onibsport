@@ -27,9 +27,17 @@ export interface Article {
   category: CategorySlug;
   author: string;
   publishedAt: string;
+  /** Last edit, for search engines. */
+  updatedAt?: string;
   image: string;
   imageAlt: string;
+  /** Where the lead photo is anchored when cropped, as "x,y" percentages. */
+  imageFocus?: string;
   coverImage: string;
+  /** The social headline on the share card. */
+  shareText?: string;
+  /** The "Key points" box at the top of the story. */
+  keyPoints?: string[];
   body: string[];
   tags: string[];
   isBreaking?: boolean;

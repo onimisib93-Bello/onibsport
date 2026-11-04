@@ -5,6 +5,7 @@ import { getSourceQueue } from "@/lib/ai/alerts";
 import { generateDraft } from "@/lib/ai/draft";
 import { internalLinkCandidates } from "@/lib/ai/links";
 import { slugify } from "@/lib/slugify";
+import { imageTextFrom } from "@/lib/ai/social";
 
 const CATEGORY_IMAGE_SEED: Record<string, string> = {
   "premier-league": "pl-title-race",
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
       author: "Onibsport AI Desk",
       source: draft.sourceOutlet,
       tags: draft.tags,
+      keyPoints: draft.keyPoints,
+      // The IMAGE TEXT teaser from the social posts becomes the share headline on the card.
+      shareText: (draft.social && imageTextFrom(draft.social)) || null,
       status: "PENDING_REVIEW",
       categoryId: category.id,
     },

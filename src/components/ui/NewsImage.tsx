@@ -1,4 +1,5 @@
 import Image, { type ImageProps } from "next/image";
+import { objectPosition } from "@/lib/focus";
 
 /**
  * next/image for every news photo. Local files and Vercel Blob uploads go
@@ -16,6 +17,8 @@ function isOptimizable(src: ImageProps["src"]) {
   }
 }
 
-export default function NewsImage({ src, alt, unoptimized, ...props }: ImageProps) {
-  return <Image src={src} alt={alt} unoptimized={unoptimized ?? !isOptimizable(src)} {...props} />;
+/** focus: the photo's focal point ("x,y" percentages) picked in the editor, kept in view when the photo is cropped. */
+export default function NewsImage({ src, alt, unoptimized, focus, style, ...props }: ImageProps & { focus?: string | null }) {
+  const position = objectPosition(focus);
+  return <Image src={src} alt={alt} unoptimized={unoptimized ?? !isOptimizable(src)} style={position ? { ...style, objectPosition: position } : style} {...props} />;
 }

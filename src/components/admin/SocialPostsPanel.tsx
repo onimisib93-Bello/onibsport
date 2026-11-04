@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   Check,
   ClipboardText,
@@ -21,7 +21,6 @@ import {
   SOCIAL_PLATFORMS,
   buildSocialPrompt,
   fillLink,
-  imageTextFrom,
   withoutImageText,
   parseSocialSection,
   postLength,
@@ -46,13 +45,32 @@ const noSubscribe = () => () => {};
 
 /**
  * The one share image for Facebook + Instagram and TikTok photo posts:
- * 1080 × 1350 portrait, made from the story photo, a teaser and the league.
+ * 1080 × 1350 portrait in the Onibsport template, made from the story photo
+ * and the share headline. The same headline goes on the story's link preview.
  */
-function ShareImage({ photos, tag, initialText }: { photos: { label: string; src: string }[]; tag?: string; initialText: string }) {
-  const [text, setText] = useState(initialText);
-  const [shownText, setShownText] = useState(initialText);
+function ShareImage({
+  photos,
+  focus,
+  text,
+  onTextChange,
+  title,
+}: {
+  photos: { label: string; src: string }[];
+  focus?: string;
+  text: string;
+  onTextChange: (text: string) => void;
+  title: string;
+}) {
   const [photo, setPhoto] = useState(photos[0]?.src ?? "");
-  const query = new URLSearchParams({ image: photo, text: shownText, ...(tag ? { tag } : {}) }).toString();
+  const headline = text.trim() || title;
+  // The preview catches up a moment after typing stops, rather than on every key.
+  const [shown, setShown] = useState(headline);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShown(headline), 600);
+    return () => window.clearTimeout(id);
+  }, [headline]);
+  const chosen = photos.some((p) => p.src === photo) ? photo : (photos[0]?.src ?? "");
+  const query = new URLSearchParams({ image: chosen, text: shown, ...(focus && chosen === photos[0]?.src ? { focus } : {}) }).toString();
   const src = `/api/admin/social-image?${query}`;
 
   return (
@@ -62,8 +80,8 @@ function ShareImage({ photos, tag, initialText }: { photos: { label: string; src
         Share image
       </h3>
       <p className="mt-1 text-xs text-muted">
-        One image for Facebook, Instagram and TikTok: 1080 × 1350 portrait (4:5). Instagram and Facebook show it full size in the feed; on TikTok it sits between
-        thin bars, and the text is kept clear of TikTok&apos;s buttons.
+        One image for Facebook, Instagram and TikTok: 1080 × 1350 portrait (4:5), with &quot;Link in the comments for more&quot; under the headline. Put the story link
+        in the first comment.
       </p>
       <div className="mt-3 grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- a generated PNG from our own route */}
@@ -76,11 +94,11 @@ function ShareImage({ photos, tag, initialText }: { photos: { label: string; src
                   key={p.src}
                   type="button"
                   role="radio"
-                  aria-checked={photo === p.src}
+                  aria-checked={chosen === p.src}
                   onClick={() => setPhoto(p.src)}
                   className={cn(
                     "cursor-pointer rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                    photo === p.src ? "bg-night text-white" : "bg-paper text-ink/70 hover:text-ink"
+                    chosen === p.src ? "bg-night text-white" : "bg-paper text-ink/70 hover:text-ink"
                   )}
                 >
                   {p.label}
@@ -89,24 +107,23 @@ function ShareImage({ photos, tag, initialText }: { photos: { label: string; src
             </div>
           )}
           <div>
-            <label htmlFor="share-image-text" className="text-xs font-bold text-ink">
-              Teaser on the image
-            </label>
+            <div className="flex items-end justify-between gap-2">
+              <label htmlFor="share-image-text" className="text-xs font-bold text-ink">
+                Share headline
+              </label>
+              <span className={cn("text-[11px] font-semibold tabular-nums", text.length > 60 ? "text-[#b42318]" : "text-muted")}>{text.length}/60</span>
+            </div>
             <input
               id="share-image-text"
               value={text}
               maxLength={90}
-              onChange={(e) => setText(e.target.value)}
-              onBlur={() => setShownText(text)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  setShownText(text);
-                }
-              }}
+              placeholder={title || "e.g. Did they really clear the air?"}
+              onChange={(e) => onTextChange(e.target.value)}
               className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink focus:border-indigo focus:outline-none"
             />
-            <p className="mt-1 text-[11px] text-muted">A question or an unfinished thought, never the answer. Press Enter to update the preview.</p>
+            <p className="mt-1 text-[11px] text-muted">
+              A question or an unfinished thought that makes people tap, never the answer. It&apos;s saved with the story and also goes on its link preview.
+            </p>
           </div>
           <a
             href={`${src}&download=1`}
@@ -135,6 +152,9 @@ export default function SocialPostsPanel({
   aiEnabled,
   kit,
   onKitChange,
+  shareText,
+  onShareTextChange,
+  focus,
 }: {
   slug: string;
   published: boolean;
@@ -144,6 +164,11 @@ export default function SocialPostsPanel({
   aiEnabled: boolean;
   kit: SocialKit | null;
   onKitChange: (kit: SocialKit | null) => void;
+  /** The share headline, saved with the story (Article.shareText). */
+  shareText: string;
+  onShareTextChange: (text: string) => void;
+  /** The lead photo focal point. */
+  focus?: string;
 }) {
   const origin = useSyncExternalStore(noSubscribe, () => window.location.origin, () => "");
   const [active, setActive] = useState<SocialPlatform>("facebook");
@@ -384,7 +409,7 @@ export default function SocialPostsPanel({
       )}
 
       {photos.length > 0 && canWrite && (
-        <ShareImage key={imageTextFrom(kit) || article.title} photos={photos} tag={article.hub} initialText={imageTextFrom(kit) || article.title} />
+        <ShareImage photos={photos} focus={focus} text={shareText} onTextChange={onShareTextChange} title={article.title} />
       )}
 
       {error && (

@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { geolocation, ipAddress } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
+import { sendDuePushesThrottled } from "@/lib/push";
 import { SESSION_COOKIE } from "@/lib/auth";
 import { classifySource, isBot, parseUserAgent, pathInfo, visitorHash } from "@/lib/analytics/classify";
 
@@ -78,6 +79,8 @@ export async function POST(request: NextRequest) {
         os,
       },
     });
+    // Scheduled breaking stories: send their alert once their time has come.
+    after(() => sendDuePushesThrottled().catch(() => undefined));
   } catch {
     // Duplicate id, analytics table not created yet, or the database is busy: drop the event.
   }

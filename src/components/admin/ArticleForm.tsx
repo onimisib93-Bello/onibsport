@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   TextHTwo,
@@ -13,18 +13,51 @@ import {
   UploadSimple,
   ClipboardText,
   CaretDown,
+  ClockCounterClockwise,
+  CalendarBlank,
 } from "@phosphor-icons/react/dist/ssr";
 import { parseBlocks, plainText, readingMinutes, RichText } from "@/lib/richText";
 import NewsImage from "@/components/ui/NewsImage";
 import { clearHandoff, parseChatDraft, readHandoff } from "@/lib/ai/chatDraft";
-import { readSocialKit, saveSocialKit, type SocialKit } from "@/lib/ai/social";
+import { imageTextFrom, readSocialKit, saveSocialKit, type SocialKit } from "@/lib/ai/social";
 import SocialPostsPanel from "@/components/admin/SocialPostsPanel";
 import SocialCardPreview from "@/components/admin/SocialCardPreview";
+import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { hasCustomShareImage } from "@/lib/shareImage";
+import { cn } from "@/lib/utils";
 
 /** Stories should be at least this long before they're published. */
 const MIN_WORDS = 400;
-import { cn } from "@/lib/utils";
+
+const noSubscribe = () => () => {};
+
+/** An ISO time as the value a datetime-local input wants, in this browser's time zone. */
+function toLocalInput(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** An hour from now, on the hour: the starting point when scheduling. */
+function nextHour() {
+  const d = new Date(Date.now() + 60 * 60_000);
+  d.setMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
+interface SavedDraft {
+  values: ArticleFormValues;
+  savedAt: number;
+}
+
+function minutesAgo(at: number) {
+  const mins = Math.round((Date.now() - at) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  return hours < 24 ? `${hours} h ago` : new Date(at).toLocaleString();
+}
 
 interface CategoryOption {
   id: string;
@@ -40,7 +73,13 @@ export interface ArticleFormValues {
   body: string;
   image: string;
   imageAlt: string;
+  /** "x,y" percentages; blank = default crop. */
+  imageFocus: string;
   coverImage: string;
+  /** The social headline on the share card and link preview. */
+  shareText: string;
+  /** One point per line. */
+  keyPoints: string;
   author: string;
   source: string;
   tags: string;
@@ -48,6 +87,8 @@ export interface ArticleFormValues {
   featured: boolean;
   featuredVideoUrl: string;
   status: "DRAFT" | "PENDING_REVIEW" | "PUBLISHED";
+  /** ISO time a published story goes live; blank = now (or keep its current time). */
+  publishAt: string;
   categoryId: string;
 }
 
@@ -88,9 +129,12 @@ export default function ArticleForm({
   initial,
   openImport = false,
   aiEnabled = false,
+  authors = [],
 }: {
   categories: CategoryOption[];
   initial?: ArticleFormValues;
+  /** Writer names offered in the Author field. */
+  authors?: string[];
   /** Start with the "Paste a draft from Claude" panel open. */
   openImport?: boolean;
   /** ANTHROPIC_API_KEY is set, so social posts can be written in one click. */
@@ -108,7 +152,10 @@ export default function ArticleForm({
       body: "",
       image: "/placeholders/pl-title-race.jpg",
       imageAlt: "",
+      imageFocus: "",
       coverImage: "",
+      shareText: "",
+      keyPoints: "",
       author: "",
       source: "",
       tags: "",
@@ -116,9 +163,75 @@ export default function ArticleForm({
       featured: false,
       featuredVideoUrl: "",
       status: "DRAFT",
+      publishAt: "",
       categoryId: categories[0]?.id ?? "",
     }
   );
+  const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
+  // The time, refreshed every half minute, for telling a scheduled story from one going live now.
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const first = window.setTimeout(tick, 0);
+    const id = window.setInterval(tick, 30_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  // Auto-save: every change is kept in this browser until the story is saved, so a crash or a closed tab loses nothing.
+  const draftKey = `onibsport-draft:${initial?.id ?? "new"}`;
+  const baseline = useRef(JSON.stringify(values));
+  const [restore, setRestore] = useState<SavedDraft | null>(null);
+  const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const submitted = useRef(false);
+
+  useEffect(() => {
+    let saved: SavedDraft | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(draftKey) ?? "null");
+    } catch {
+      saved = null;
+    }
+    if (!saved?.values || JSON.stringify(saved.values) === baseline.current) return;
+    const found = saved;
+    const id = window.setTimeout(() => setRestore(found), 0);
+    return () => window.clearTimeout(id);
+  }, [draftKey]);
+
+  useEffect(() => {
+    // Hold off while the "restore your changes?" question is open, so the older copy isn't overwritten.
+    if (restore || submitted.current) return;
+    const json = JSON.stringify(values);
+    if (json === baseline.current) return;
+    const id = window.setTimeout(() => {
+      try {
+        const at = Date.now();
+        localStorage.setItem(draftKey, JSON.stringify({ values, savedAt: at }));
+        setAutoSavedAt(at);
+      } catch {
+        // Storage full or blocked: carry on without auto-save.
+      }
+    }, 1000);
+    return () => window.clearTimeout(id);
+  }, [values, draftKey, restore]);
+
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!submitted.current && JSON.stringify(values) !== baseline.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [values]);
+
+  function forgetDraft() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+  }
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -134,13 +247,22 @@ export default function ArticleForm({
   useEffect(() => {
     const saved = readSocialKit(initial?.slug ?? "");
     if (!saved || Object.keys(saved).length === 0) return;
-    const id = window.setTimeout(() => setSocialKit(saved), 0);
+    const id = window.setTimeout(() => {
+      setSocialKit(saved);
+      // Stories saved before the share headline existed pick it up from their posts.
+      const teaser = imageTextFrom(saved);
+      if (teaser) setValues((v) => (v.shareText ? v : { ...v, shareText: teaser }));
+    }, 0);
     return () => window.clearTimeout(id);
   }, [initial?.slug]);
 
   function changeSocialKit(kit: SocialKit | null, slug = values.slug) {
     setSocialKit(kit);
     saveSocialKit(slug, kit ?? {});
+    // New posts bring a fresh IMAGE TEXT teaser: use it as the share headline unless one was written by hand.
+    const teaser = kit ? imageTextFrom(kit) : "";
+    const previous = socialKit ? imageTextFrom(socialKit) : "";
+    if (teaser) setValues((v) => (!v.shareText.trim() || v.shareText === previous ? { ...v, shareText: teaser } : v));
   }
 
   function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
@@ -243,6 +365,7 @@ export default function ArticleForm({
       body: parsed.body,
       tags: parsed.tags || v.tags,
       imageAlt: parsed.imageAlt || v.imageAlt,
+      keyPoints: parsed.keyPoints || v.keyPoints,
       categoryId: category?.id ?? v.categoryId,
       author: v.author || "Onibsport Desk",
       source: handoff?.outlet ?? v.source,
@@ -270,6 +393,11 @@ export default function ArticleForm({
     ) {
       return;
     }
+    // Going live as Breaking news sends a push alert, so it gets a deliberate yes.
+    const alerting = values.isBreaking && values.status === "PUBLISHED" && !scheduled && !(initial?.isBreaking && initial.status === "PUBLISHED");
+    if (alerting && !window.confirm("This is marked Breaking news, so it will send an alert to every reader who turned on breaking alerts. Go ahead?")) {
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -285,6 +413,8 @@ export default function ArticleForm({
       }
       // Keep the social posts under the web address the story was saved with.
       if (socialKit) saveSocialKit(values.slug, socialKit);
+      submitted.current = true;
+      forgetDraft();
       router.push("/admin/articles");
       router.refresh();
     } finally {
@@ -306,6 +436,8 @@ export default function ArticleForm({
   const links = (values.body.match(/\]\((?:https?:\/\/|\/)/g) ?? []).length;
   const externalImage = isExternalImage(values.image) || isExternalImage(values.coverImage);
   const categoryName = categories.find((c) => c.id === values.categoryId)?.name ?? "";
+  const scheduled = values.status === "PUBLISHED" && !!values.publishAt && now > 0 && new Date(values.publishAt).getTime() > now;
+  const keyPointCount = values.keyPoints.split("\n").filter((p) => p.trim()).length;
 
   const checks = [
     { ok: values.title.length >= 30 && values.title.length <= 70, text: "Headline is 30-70 characters" },
@@ -315,6 +447,8 @@ export default function ArticleForm({
     { ok: links >= 2, text: "Has at least two links" },
     { ok: values.imageAlt.length >= 10, text: "Lead photo has descriptive alt text" },
     { ok: values.tags.split(",").filter((t) => t.trim()).length >= 3, text: "Has three or more tags" },
+    { ok: keyPointCount >= 3, text: "Has three key points" },
+    { ok: !!values.shareText.trim(), text: "Has a share headline for social" },
   ];
 
   return (
@@ -345,7 +479,7 @@ export default function ArticleForm({
                 rows={8}
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                placeholder={"TITLE: …\nSTANDFIRST: …\nCATEGORY: …\nTAGS: …\nIMAGE ALT: …\nBODY:\n…"}
+                placeholder={"TITLE: …\nSTANDFIRST: …\nCATEGORY: …\nTAGS: …\nIMAGE ALT: …\nKEY POINTS: … | … | …\nBODY:\n…"}
                 className="w-full rounded-xl border border-white/15 bg-white/5 p-3 font-mono text-[13px] text-white placeholder:text-white/35 focus:border-orange focus:outline-none"
               />
               <button
@@ -359,6 +493,36 @@ export default function ArticleForm({
             </div>
           )}
         </section>
+
+        {restore && (
+          <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl bg-sky/10 p-4 text-sm text-ink ring-1 ring-sky/40">
+            <ClockCounterClockwise size={22} weight="bold" className="shrink-0 text-sky-dark" aria-hidden="true" />
+            <p className="min-w-0 flex-1">
+              <span className="font-bold">You have unsaved changes from {minutesAgo(restore.savedAt)}.</span> Bring them back?
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setValues(restore.values);
+                setSlugTouched(true);
+                setRestore(null);
+              }}
+              className="cursor-pointer rounded-full bg-night px-4 py-2 text-sm font-bold text-white hover:bg-indigo"
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                forgetDraft();
+                setRestore(null);
+              }}
+              className="cursor-pointer rounded-full px-3 py-2 text-sm font-semibold text-muted hover:bg-white hover:text-ink"
+            >
+              Discard
+            </button>
+          </div>
+        )}
 
         {importResult && (
           <p
@@ -432,6 +596,29 @@ export default function ArticleForm({
               One sentence under the headline. It&apos;s also the description Google and social networks show.
             </p>
             <textarea id="f-dek" aria-describedby="f-dek-help" required rows={2} value={values.dek} onChange={(e) => update("dek", e.target.value)} className={input} />
+          </div>
+
+          <div>
+            <div className="flex items-end justify-between gap-3">
+              <label htmlFor="f-keypoints" className={label}>
+                Key points
+              </label>
+              <span className={cn("text-xs font-semibold tabular-nums", keyPointCount >= 3 && keyPointCount <= 4 ? "text-[#1f7a4a]" : "text-muted")}>
+                {keyPointCount} {keyPointCount === 1 ? "point" : "points"}
+              </span>
+            </div>
+            <p id="f-keypoints-help" className="mt-0.5 text-xs text-muted">
+              Three short lines, one per line, shown in a box at the top of the story for readers in a hurry. Leave blank to hide the box.
+            </p>
+            <textarea
+              id="f-keypoints"
+              aria-describedby="f-keypoints-help"
+              rows={3}
+              value={values.keyPoints}
+              onChange={(e) => update("keyPoints", e.target.value)}
+              placeholder={"Carrick and Fernandes met on Monday\nThe captain was left out of the squad\nUnited face Chelsea on Sunday"}
+              className={input}
+            />
           </div>
 
           <div>
@@ -540,13 +727,15 @@ export default function ArticleForm({
             </div>
           </div>
 
+          {values.image && <FocalPointPicker src={values.image} value={values.imageFocus} onChange={(v) => update("imageFocus", v)} />}
+
           <div>
             <label htmlFor="f-cover" className={label}>
               Share image (optional)
             </label>
             <p className="mt-0.5 text-xs text-muted">
-              What links to this story show on Facebook, X and WhatsApp. Leave blank for the branded Onibsport card made from the lead photo and headline (see Social
-              card below). Upload your own only if you&apos;ve designed one: 1200 × 630.
+              What links to this story show on Facebook, X and WhatsApp. Leave blank for the branded Onibsport card made from the lead photo and the share headline
+              (see Social card below). Upload your own only if you&apos;ve designed one: 1200 × 630.
             </p>
             <input
               id="f-cover"
@@ -610,6 +799,51 @@ export default function ArticleForm({
                 <option value="PUBLISHED">Published</option>
               </select>
             </div>
+            {values.status === "PUBLISHED" && mounted && (
+              <fieldset className="sm:col-span-2 xl:col-span-1">
+                <legend className={label}>Goes live</legend>
+                <div className="mt-1.5 flex gap-1.5">
+                  {[
+                    { on: false, text: initial?.status === "PUBLISHED" && !values.publishAt ? "As it is" : "Now" },
+                    { on: true, text: "Schedule" },
+                  ].map((o) => (
+                    <label
+                      key={o.text}
+                      className={cn(
+                        "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold ring-1 transition-colors",
+                        !!values.publishAt === o.on ? "bg-night text-white ring-night" : "bg-white text-ink/70 ring-line hover:text-ink"
+                      )}
+                    >
+                      <input type="radio" name="golive" className="sr-only" checked={!!values.publishAt === o.on} onChange={() => update("publishAt", o.on ? nextHour() : "")} />
+                      {o.on && <CalendarBlank size={16} weight="bold" aria-hidden="true" />}
+                      {o.text}
+                    </label>
+                  ))}
+                </div>
+                {values.publishAt && (
+                  <div className="mt-2">
+                    <label htmlFor="f-publish-at" className="sr-only">
+                      Date and time it goes live
+                    </label>
+                    <input
+                      id="f-publish-at"
+                      type="datetime-local"
+                      value={toLocalInput(values.publishAt)}
+                      onChange={(e) => {
+                        const d = new Date(e.target.value);
+                        if (!Number.isNaN(d.getTime())) update("publishAt", d.toISOString());
+                      }}
+                      className={input}
+                    />
+                    <p className="mt-1 text-xs text-muted">
+                      {scheduled
+                        ? `Appears on the site about a minute after ${new Date(values.publishAt).toLocaleString(undefined, { weekday: "long", hour: "2-digit", minute: "2-digit" })}, your time.`
+                        : "That time has passed, so it goes live as soon as you save."}
+                    </p>
+                  </div>
+                )}
+              </fieldset>
+            )}
             <div>
               <label htmlFor="f-category" className={label}>
                 League hub
@@ -626,7 +860,12 @@ export default function ArticleForm({
               <label htmlFor="f-author" className={label}>
                 Author
               </label>
-              <input id="f-author" required value={values.author} onChange={(e) => update("author", e.target.value)} className={input} />
+              <input id="f-author" required list="f-author-list" value={values.author} onChange={(e) => update("author", e.target.value)} className={input} />
+              <datalist id="f-author-list">
+                {authors.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label htmlFor="f-source" className={label}>
@@ -645,7 +884,11 @@ export default function ArticleForm({
           <fieldset className="space-y-2.5">
             <legend className="sr-only">Placement</legend>
             {[
-              { key: "isBreaking" as const, title: "Breaking news", help: "Shows the Breaking label and the site-wide alert." },
+              {
+                key: "isBreaking" as const,
+                title: "Breaking news",
+                help: "Shows the Breaking label and the site-wide alert, and sends a push alert to readers who turned them on.",
+              },
               { key: "featured" as const, title: "Feature on the homepage", help: "Puts it in the hero slideshow and Editor's picks. It stays on its hub too." },
             ].map((o) => (
               <label key={o.key} className="flex cursor-pointer gap-3 rounded-xl p-2 hover:bg-paper">
@@ -669,13 +912,18 @@ export default function ArticleForm({
             </p>
           )}
 
+          {autoSavedAt && !restore && (
+            <p className="-mb-2 text-xs text-muted" aria-live="polite">
+              Changes kept on this device at {new Date(autoSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Save to put them live.
+            </p>
+          )}
           <div className="flex items-center gap-3 border-t border-line pt-5">
             <button
               type="submit"
               disabled={saving}
               className="flex-1 cursor-pointer rounded-full bg-night px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Saving…" : isEdit ? "Save changes" : "Create article"}
+              {saving ? "Saving…" : scheduled ? "Schedule story" : isEdit ? "Save changes" : "Create article"}
             </button>
             <button
               type="button"
@@ -718,6 +966,9 @@ export default function ArticleForm({
           aiEnabled={aiEnabled}
           kit={socialKit}
           onKitChange={(kit) => changeSocialKit(kit)}
+          shareText={values.shareText}
+          onShareTextChange={(text) => update("shareText", text)}
+          focus={values.imageFocus}
         />
 
         <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
@@ -767,7 +1018,12 @@ export default function ArticleForm({
                 image={
                   hasCustomShareImage(values)
                     ? values.coverImage
-                    : `/api/admin/social-image?${new URLSearchParams({ shape: "landscape", image: values.image, text: values.title, tag: categoryName ?? "" })}`
+                    : `/api/admin/social-image?${new URLSearchParams({
+                        shape: "landscape",
+                        image: values.image,
+                        text: values.shareText.trim() || values.title,
+                        ...(values.imageFocus ? { focus: values.imageFocus } : {}),
+                      })}`
                 }
                 title={values.title}
                 dek={values.dek}

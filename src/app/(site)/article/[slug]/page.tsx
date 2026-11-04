@@ -17,6 +17,8 @@ import ReadingProgress from "@/components/article/ReadingProgress";
 import ArticleVideo from "@/components/article/ArticleVideo";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 import { shareImageFor } from "@/lib/shareImage";
+import { authorPath, getAuthorByName, initials } from "@/lib/authors";
+import BreakingAlerts from "@/components/BreakingAlerts";
 
 export const revalidate = 60;
 
@@ -31,7 +33,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!article) return {};
   const category = getCategory(article.category);
   // The branded Onibsport card, unless the editor uploaded their own share image.
-  const shareImage = shareImageFor({ ...article, category: category?.name });
+  const shareImage = shareImageFor(article);
 
   return {
     title: article.title,
@@ -67,7 +69,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const category = getCategory(article.category);
   const theme = leagueTheme(article.category);
-  const [related, latest] = await Promise.all([getRelatedArticles(article, 4), getLatestArticles(8)]);
+  const [related, latest, author] = await Promise.all([getRelatedArticles(article, 4), getLatestArticles(8), getAuthorByName(article.author)]);
   const blocks = parseBlocks(article.body);
   const headings = blocks.flatMap((b) => (b.type === "h2" ? [b] : []));
   const minutes = readingMinutes(article.body);
@@ -80,7 +82,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const nextStory = moreLatest[0];
 
   const jsonLd = [
-    newsArticleJsonLd(article, category),
+    newsArticleJsonLd(article, category, author),
     breadcrumbJsonLd([
       { name: "Home", path: "/" },
       ...(category ? [{ name: category.name, path: `/category/${category.slug}` }] : []),
@@ -123,15 +125,22 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
           <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-line py-4">
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-full font-display text-lg font-black text-white" style={{ background: theme.deep }}>
-                {article.author
-                  .split(/\s+/)
-                  .map((w) => w[0])
-                  .slice(0, 2)
-                  .join("")}
-              </span>
+              <Link
+                href={authorPath(author.name)}
+                aria-hidden="true"
+                tabIndex={-1}
+                className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full font-display text-lg font-black text-white"
+                style={{ background: theme.deep }}
+              >
+                {author.photo ? <NewsImage src={author.photo} alt="" fill sizes="44px" className="object-cover" /> : initials(author.name)}
+              </Link>
               <div className="text-sm leading-tight">
-                <p className="font-bold text-ink">{article.author}</p>
+                <p className="font-bold text-ink">
+                  <Link href={authorPath(author.name)} rel="author" className="hover:text-indigo">
+                    {author.name}
+                  </Link>
+                  {author.role && <span className="font-normal text-muted">, {author.role}</span>}
+                </p>
                 <p className="text-muted">
                   <LocalTime iso={article.publishedAt} day={{ day: "numeric", month: "long", year: "numeric" }} zone />
                 </p>
@@ -169,6 +178,25 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
         <div className="mx-auto grid max-w-[1100px] gap-10 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
+            {article.keyPoints && article.keyPoints.length > 0 && (
+              <section
+                aria-labelledby="key-points"
+                className="mx-auto mb-8 max-w-[680px] rounded-2xl border-l-4 bg-white p-5 ring-1 ring-line sm:p-6"
+                style={{ borderLeftColor: theme.tint }}
+              >
+                <h2 id="key-points" className="font-display text-2xl font-black text-ink">
+                  Key points
+                </h2>
+                <ul className="mt-3 space-y-2.5">
+                  {article.keyPoints.map((point) => (
+                    <li key={point} className="flex gap-3 text-[16px] leading-snug text-ink/85">
+                      <span aria-hidden="true" className="mt-[7px] h-2 w-2 shrink-0 rounded-[3px]" style={{ background: theme.deep }} />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <div className="story mx-auto max-w-[680px]">
               {blocks.slice(0, midpoint).map((block, i) => (
                 <RenderBlock key={i} block={block} />
@@ -202,8 +230,31 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                   </ul>
                 </div>
               )}
-              <div className="border-t border-line pt-6">
+              {author.bio && (
+                <div className="flex gap-4 rounded-2xl bg-white p-5 ring-1 ring-line">
+                  <span
+                    className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full font-display text-2xl font-black text-white"
+                    style={{ background: theme.deep }}
+                  >
+                    {author.photo ? <NewsImage src={author.photo} alt="" fill sizes="64px" className="object-cover" /> : initials(author.name)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-muted">About the writer</p>
+                    <p className="mt-0.5 font-display text-2xl font-black leading-tight text-ink">
+                      <Link href={authorPath(author.name)} className="hover:text-indigo">
+                        {author.name}
+                      </Link>
+                    </p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink/75">{author.bio}</p>
+                    <Link href={authorPath(author.name)} className="mt-2 inline-block text-sm font-bold text-indigo hover:text-sky-dark">
+                      More from {author.name.split(/\s+/)[0]}
+                    </Link>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
                 <ShareBar title={article.title} path={`/article/${article.slug}`} />
+                <BreakingAlerts />
               </div>
               <AdSlot placement="article-end" />
             </div>
@@ -249,7 +300,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <section aria-label="Next story" className="mx-auto mt-16 max-w-[1100px] px-4 sm:px-6">
           <Link href={`/article/${nextStory.slug}`} className="group relative block overflow-hidden rounded-3xl bg-night text-white">
             <NewsImage
-              src={nextStory.image || nextStory.coverImage}
+              src={nextStory.image || nextStory.coverImage} focus={nextStory.imageFocus}
               alt=""
               fill
               sizes="1100px"

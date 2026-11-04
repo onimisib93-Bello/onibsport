@@ -1,16 +1,17 @@
 import { ensureCategories } from "@/lib/data/ensureCategories";
 import { prisma } from "@/lib/prisma";
+import { writerNames } from "@/lib/authors";
 import ArticleForm from "@/components/admin/ArticleForm";
 
 export default async function NewArticlePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await ensureCategories();
-  const [categories, params] = await Promise.all([prisma.category.findMany({ orderBy: { name: "asc" } }), searchParams]);
+  const [categories, params, authors] = await Promise.all([prisma.category.findMany({ orderBy: { name: "asc" } }), searchParams, writerNames()]);
 
   return (
     <div>
       <h1 className="font-display text-5xl font-black leading-none text-ink">Write a story</h1>
       <div className="mt-6">
-        <ArticleForm categories={categories} openImport={params.import === "1"} aiEnabled={!!process.env.ANTHROPIC_API_KEY} />
+        <ArticleForm categories={categories} openImport={params.import === "1"} aiEnabled={!!process.env.ANTHROPIC_API_KEY} authors={authors} />
       </div>
     </div>
   );

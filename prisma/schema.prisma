@@ -31,6 +31,12 @@ model Article {
   image            String
   imageAlt         String
   coverImage       String?
+  /// Where the lead photo is anchored when cropped, as "x,y" percentages (e.g. "50,30").
+  imageFocus       String?
+  /// The social headline on the share card (a teaser, not the article title).
+  shareText        String?
+  /// The "Key points" box at the top of the story, one point per line.
+  keyPoints        String        @default("")
   author           String
   source           String?
   tags             String        @default("")
@@ -40,9 +46,39 @@ model Article {
   status           ArticleStatus @default(DRAFT)
   categoryId       String
   category         Category      @relation(fields: [categoryId], references: [id])
+  /// When the story goes live. A PUBLISHED story with a future date is scheduled.
   publishedAt      DateTime?
+  /// When the breaking-news alert went out, so it is only sent once.
+  pushedAt         DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+/// A writer, shown on bylines and their own page (/author/[slug]). Stories link
+/// to an author by name (Article.author).
+model Author {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String   @unique
+  /// e.g. "Premier League correspondent"
+  role      String   @default("")
+  bio       String   @default("")
+  photo     String?
+  /// X/Twitter handle without the @.
+  xHandle   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A browser that asked for breaking-news alerts (Web Push).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }
 
 model User {

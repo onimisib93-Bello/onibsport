@@ -66,7 +66,7 @@ export default function YouTubeSection({ videos, featured }: { videos: SiteVideo
                 aria-label={`Play video: ${featured.title}`}
               >
                 <NewsImage
-                  src={featured.image || featured.coverImage}
+                  src={featured.image || featured.coverImage} focus={featured.imageFocus}
                   alt=""
                   fill
                   sizes="(min-width: 1024px) 60vw, 100vw"
