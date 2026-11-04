@@ -31,6 +31,7 @@ import {
   type SocialPlatform,
 } from "@/lib/ai/social";
 import { cn } from "@/lib/utils";
+import { bioLink } from "@/components/admin/BioLinks";
 
 const ICONS: Record<SocialPlatform, typeof XLogo> = {
   facebook: FacebookLogo,
@@ -383,27 +384,22 @@ export default function SocialPostsPanel({
                   {current.shareLabel}
                 </a>
               )}
-              {current.id === "facebook" && articleUrl && (
+              {(current.id === "facebook" || !current.linkInPost) && origin && (
                 <button
                   type="button"
-                  onClick={() => copy(trackedLink(articleUrl, "instagram"), "instagram-link")}
+                  onClick={() => copy(bioLink(origin, current.id === "facebook" ? "instagram" : current.id), `${current.id}-bio`)}
                   className="flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink"
                 >
-                  <InstagramLogo size={16} weight="bold" aria-hidden="true" />
-                  {copied === "instagram-link" ? "Link copied" : "Copy Instagram bio link"}
-                </button>
-              )}
-              {!current.linkInPost && articleUrl && (
-                <button
-                  type="button"
-                  onClick={() => copy(trackedLink(articleUrl, current.id), `${current.id}-link`)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink"
-                >
-                  <LinkSimple size={16} weight="bold" aria-hidden="true" />
-                  {copied === `${current.id}-link` ? "Link copied" : "Copy link for bio"}
+                  {current.id === "facebook" ? <InstagramLogo size={16} weight="bold" aria-hidden="true" /> : <LinkSimple size={16} weight="bold" aria-hidden="true" />}
+                  {copied === `${current.id}-bio` ? "Bio link copied" : current.id === "facebook" ? "Copy Instagram bio link" : "Copy bio link"}
                 </button>
               )}
             </div>
+            {(current.id === "facebook" || !current.linkInPost) && (
+              <p className="mt-2 text-xs text-muted">
+                The bio link is your Onibsport links page. Set it once and leave it: every new story shows there under &quot;Just posted&quot;.
+              </p>
+            )}
           </div>
         </div>
       )}

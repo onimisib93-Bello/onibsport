@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PublishButton } from "@/components/admin/ArticleActions";
 import NewsImage from "@/components/ui/NewsImage";
 import { timeAgo } from "@/lib/time";
+import BioLinks from "@/components/admin/BioLinks";
 
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 3600 * 1000);
@@ -63,6 +64,10 @@ export default async function AdminDashboard() {
           </div>
         ))}
       </dl>
+
+      <div className="mt-8">
+        <BioLinks />
+      </div>
 
       <div className="mt-12 grid gap-10 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section aria-labelledby="pending-title">

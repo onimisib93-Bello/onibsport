@@ -40,7 +40,7 @@ export const SOCIAL_PLATFORMS: PlatformInfo[] = [
     // share pop-up is avoided: it defaults to a personal profile and often hangs on "Posting".
     shareUrl: () => "https://business.facebook.com/latest/composer",
     shareLabel: "Copy & open Meta Business Suite",
-    tip: "One post for both. The post is copied for you: in Meta Business Suite, tick your Facebook Page and Instagram, paste it, and attach the share image below. The link is clickable on Facebook; on Instagram it shows as text, so also put the Instagram link in your bio.",
+    tip: "One post for both. The post is copied for you: in Meta Business Suite, tick your Facebook Page and Instagram, paste it, and attach the share image below. The link is clickable on Facebook; on Instagram it shows as text, so readers use the link in your bio (your Onibsport links page, where the story shows under Just posted).",
   },
   {
     id: "x",
@@ -57,7 +57,7 @@ export const SOCIAL_PLATFORMS: PlatformInfo[] = [
     label: "TIKTOK",
     limit: 2200,
     linkInPost: false,
-    tip: "Post it as a photo: upload the share image below, put the TITLE in TikTok's title box and the rest in the description. TikTok captions can't hold a clickable link, so put the tracked link in your bio.",
+    tip: "Post it as a photo: upload the share image below, put the TITLE in TikTok's title box and the rest in the description. TikTok captions can't hold a clickable link: readers use the link in your bio (your Onibsport links page, where the story shows under Just posted).",
   },
   {
     id: "whatsapp",
