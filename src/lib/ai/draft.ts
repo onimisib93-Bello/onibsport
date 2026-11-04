@@ -74,7 +74,7 @@ Headline
 - Put the main keyword (club, player or competition) near the start. Aim for 50-70 characters.
 
 Article body
-- A full article, not a summary: roughly 700-1,100 words when the source is substantial; shorter only when the source is thin.
+- A full article, not a summary: never under 450 words, and roughly 700-1,100 words when the source is substantial. When the source is thin, reach 450+ with genuinely useful, accurate context (the stakes, recent form, the table, what comes next, background readers need) — never with padding, repetition or invented detail.
 - Open with the most compelling angle in the first paragraph, then build context, stakes and consequences, and close with what happens next or why it matters.
 - Break it up with 2-4 subheadings that a reader scanning the page (and a search engine) would find useful.
 - Stay strictly factual to the source. Never invent quotes, statistics, fees, dates, injuries or any other specifics. If the source quotes someone, you may quote those exact words with attribution; otherwise paraphrase.
@@ -182,6 +182,48 @@ export function buildChatPrompt(brief: SourceBrief): string {
   ].join("\n");
 }
 
+/** Stories should be at least this long; shorter drafts are sent back once to be expanded. */
+const MIN_WORDS = 400;
+
+/** Words in a markdown body, ignoring link URLs and formatting marks. */
+function countWords(markdown: string): number {
+  return markdown
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[#>*_`-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+type Draft = z.infer<typeof DraftSchema>;
+
+/**
+ * Asks for the whole draft again with a longer body, showing the model its
+ * first attempt. Returns null (keep the first draft) if the rewrite fails or
+ * isn't actually longer.
+ */
+async function expandShortDraft(client: Anthropic, briefText: string, draft: Draft, words: number): Promise<Draft | null> {
+  try {
+    const response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 16000,
+      system: [SYSTEM_PROMPT, SOCIAL_RULES].join("\n\n"),
+      messages: [
+        { role: "user", content: briefText },
+        { role: "assistant", content: JSON.stringify(draft) },
+        {
+          role: "user",
+          content: `The body is only ${words} words; Onibsport stories must be at least 450. Return the complete draft again, every field, with a body of 500-700 words. Add genuinely useful, accurate context (what is at stake, recent form, the table, what comes next, background readers need) and keep every fact, quote and link from the first version. No padding, repetition or invented detail.`,
+        },
+      ],
+      output_config: { format: zodOutputFormat(DraftSchema) },
+    });
+    const longer = response.stop_reason === "end_turn" ? response.parsed_output : null;
+    return longer && countWords(longer.body) > words ? longer : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateDraft(source: SourceItem, internalLinks: InternalLink[] = []): Promise<GeneratedDraft> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -217,9 +259,15 @@ export async function generateDraft(source: SourceItem, internalLinks: InternalL
   if (response.stop_reason === "max_tokens") {
     throw new Error("The draft ran past the length limit and was cut off. Try drafting it again.");
   }
-  const draft = response.parsed_output;
+  let draft = response.parsed_output;
   if (!draft) {
     throw new Error("AI Desk returned a draft that didn't match the expected format. Try again.");
+  }
+
+  // Stories go out at 400+ words: a short draft gets one rewrite with more context.
+  const words = countWords(draft.body);
+  if (words < MIN_WORDS) {
+    draft = (await expandShortDraft(client, brief.text, draft, words)) ?? draft;
   }
 
   return {

@@ -20,6 +20,10 @@ import { clearHandoff, parseChatDraft, readHandoff } from "@/lib/ai/chatDraft";
 import { readSocialKit, saveSocialKit, type SocialKit } from "@/lib/ai/social";
 import SocialPostsPanel from "@/components/admin/SocialPostsPanel";
 import SocialCardPreview from "@/components/admin/SocialCardPreview";
+import { hasCustomShareImage } from "@/lib/shareImage";
+
+/** Stories should be at least this long before they're published. */
+const MIN_WORDS = 400;
 import { cn } from "@/lib/utils";
 
 interface CategoryOption {
@@ -96,14 +100,15 @@ export default function ArticleForm({
   const isEdit = !!initial?.id;
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [values, setValues] = useState<ArticleFormValues>(
-    initial ?? {
+    // A share image that's only the lead photo or a placeholder shows as blank: blank means the branded card.
+    (initial && { ...initial, coverImage: hasCustomShareImage(initial) ? initial.coverImage : "" }) ?? {
       title: "",
       slug: "",
       dek: "",
       body: "",
       image: "/placeholders/pl-title-race.jpg",
       imageAlt: "",
-      coverImage: "/covers/pl-title-race-cover.jpg",
+      coverImage: "",
       author: "",
       source: "",
       tags: "",
@@ -257,6 +262,14 @@ export default function ArticleForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Stories go out at 400 words or more; a shorter one needs a deliberate yes.
+    if (
+      values.status === "PUBLISHED" &&
+      words < MIN_WORDS &&
+      !window.confirm(`This story is only ${words} words. Onibsport stories should be at least ${MIN_WORDS}. Publish it anyway?`)
+    ) {
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -297,7 +310,7 @@ export default function ArticleForm({
   const checks = [
     { ok: values.title.length >= 30 && values.title.length <= 70, text: "Headline is 30-70 characters" },
     { ok: values.dek.length >= 70 && values.dek.length <= 160, text: "Standfirst/meta description is 70-160 characters" },
-    { ok: words >= 400, text: `Story is at least 400 words (now ${words})` },
+    { ok: words >= MIN_WORDS, text: `Story is at least ${MIN_WORDS} words (now ${words})` },
     { ok: subheads >= 2, text: "Has at least two subheadings" },
     { ok: links >= 2, text: "Has at least two links" },
     { ok: values.imageAlt.length >= 10, text: "Lead photo has descriptive alt text" },
@@ -426,8 +439,8 @@ export default function ArticleForm({
               <label htmlFor="f-body" className={label}>
                 Story
               </label>
-              <span className="text-xs text-muted">
-                {words} words, about {readingMinutes(paragraphs)} min read
+              <span className={cn("text-xs", words < MIN_WORDS ? "font-semibold text-[#b42318]" : "text-muted")}>
+                {words} words{words < MIN_WORDS ? ` (needs ${MIN_WORDS}+)` : ""}, about {readingMinutes(paragraphs)} min read
               </span>
             </div>
             <div className="mt-1.5 overflow-hidden rounded-xl border border-line focus-within:border-indigo focus-within:ring-4 focus-within:ring-indigo/10">
@@ -529,14 +542,17 @@ export default function ArticleForm({
 
           <div>
             <label htmlFor="f-cover" className={label}>
-              Share image (1200×630)
+              Share image (optional)
             </label>
-            <p className="mt-0.5 text-xs text-muted">Shown when the story is shared and in search results. Leave blank to use the lead photo.</p>
+            <p className="mt-0.5 text-xs text-muted">
+              What links to this story show on Facebook, X and WhatsApp. Leave blank for the branded Onibsport card made from the lead photo and headline (see Social
+              card below). Upload your own only if you&apos;ve designed one: 1200 × 630.
+            </p>
             <input
               id="f-cover"
               value={values.coverImage}
               onChange={(e) => update("coverImage", e.target.value)}
-              placeholder={values.image}
+              placeholder="Blank = branded Onibsport card"
               className={cn(input, "font-mono text-sm")}
             />
             <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-indigo hover:text-indigo-dark">
@@ -746,7 +762,17 @@ export default function ArticleForm({
                 <p className="mt-1 line-clamp-2 text-sm text-[#4d5156]">{values.dek || "Your standfirst appears here as the description."}</p>
               </div>
             )}
-            {preview === "social" && <SocialCardPreview image={values.coverImage || values.image} title={values.title} dek={values.dek} />}
+            {preview === "social" && (
+              <SocialCardPreview
+                image={
+                  hasCustomShareImage(values)
+                    ? values.coverImage
+                    : `/api/admin/social-image?${new URLSearchParams({ shape: "landscape", image: values.image, text: values.title, tag: categoryName ?? "" })}`
+                }
+                title={values.title}
+                dek={values.dek}
+              />
+            )}
           </div>
         </section>
       </div>

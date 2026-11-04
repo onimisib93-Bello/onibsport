@@ -16,6 +16,7 @@ import FullImage from "@/components/ui/FullImage";
 import ReadingProgress from "@/components/article/ReadingProgress";
 import ArticleVideo from "@/components/article/ArticleVideo";
 import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
+import { shareImageFor } from "@/lib/shareImage";
 
 export const revalidate = 60;
 
@@ -29,6 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const article = await getArticleBySlug(slug);
   if (!article) return {};
   const category = getCategory(article.category);
+  // The branded Onibsport card, unless the editor uploaded their own share image.
+  const shareImage = shareImageFor({ ...article, category: category?.name });
 
   return {
     title: article.title,
@@ -46,13 +49,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       section: category?.name,
       tags: article.tags,
       url: `/article/${article.slug}`,
-      images: [{ url: article.coverImage, width: 1200, height: 630, alt: article.imageAlt }],
+      images: [{ url: shareImage, width: 1200, height: 630, alt: article.title }],
     },
     twitter: {
       card: "summary_large_image",
       title: article.title,
       description: article.dek,
-      images: [article.coverImage],
+      images: [shareImage],
     },
   };
 }

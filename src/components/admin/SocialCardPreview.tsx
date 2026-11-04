@@ -78,6 +78,8 @@ export default function SocialCardPreview({ image, title, dek }: { image: string
   }
 
   const current = SHAPES.find((s) => s.id === shape)!;
+  // The branded card comes from an admin-only route, which the image optimizer can't fetch.
+  const generated = image.startsWith("/api/");
 
   return (
     <div>
@@ -129,11 +131,11 @@ export default function SocialCardPreview({ image, title, dek }: { image: string
             fit === "whole" ? (
               <>
                 {/* Blurred copy fills the frame so the whole photo can sit on top uncropped. */}
-                <NewsImage src={image} alt="" fill sizes="340px" className="scale-110 object-cover opacity-70 blur-xl" aria-hidden="true" />
-                <NewsImage src={image} alt="" fill sizes="340px" className="object-contain" />
+                <NewsImage src={image} unoptimized={generated} alt="" fill sizes="340px" className="scale-110 object-cover opacity-70 blur-xl" aria-hidden="true" />
+                <NewsImage src={image} unoptimized={generated} alt="" fill sizes="340px" className="object-contain" />
               </>
             ) : (
-              <NewsImage src={image} alt="" fill sizes="440px" className="object-cover" />
+              <NewsImage src={image} unoptimized={generated} alt="" fill sizes="440px" className="object-cover" />
             )
           ) : (
             <p className="absolute inset-0 grid place-items-center text-sm text-muted">Add a photo to preview it</p>
