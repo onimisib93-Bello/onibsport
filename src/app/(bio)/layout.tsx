@@ -36,7 +36,8 @@ export const viewport: Viewport = {
 export default function BioLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${shoulders.variable} ${archivo.variable} h-full antialiased`}>
-      <body className="min-h-full bg-night text-white">
+      {/* Inline so it beats the site-wide body colours in globals.css (and overscroll stays dark). */}
+      <body className="min-h-full" style={{ background: "#120a33", color: "#ffffff" }}>
         {children}
         <Analytics />
       </body>

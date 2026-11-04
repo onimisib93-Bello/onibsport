@@ -108,7 +108,8 @@ export default async function LinksPage({ searchParams }: { searchParams: Promis
   const socials = SOCIALS.filter((s) => SOCIAL_LINKS[s.key]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    // The page sets its own night background and white text: the site-wide body style would otherwise paint it paper-white.
+    <div className="relative min-h-screen overflow-hidden bg-night text-white">
       <div className="pitch-lines pointer-events-none absolute inset-0 opacity-50" aria-hidden="true" />
       <div
         className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-orange/20 blur-[120px]"
