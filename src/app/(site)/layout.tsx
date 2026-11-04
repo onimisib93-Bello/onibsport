@@ -42,6 +42,9 @@ export const metadata: Metadata = {
     "live football scores",
   ],
   icons: { icon: "/logo.png" },
+  // Google Search Console ownership check: set GOOGLE_SITE_VERIFICATION to the code from the "HTML tag" method.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
+  robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   alternates: { canonical: "/" },
   openGraph: {
     siteName: "Onibsport",

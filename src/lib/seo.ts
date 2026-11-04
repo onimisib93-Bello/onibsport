@@ -13,7 +13,7 @@ export function absoluteUrl(path: string) {
 export function organizationJsonLd() {
   return {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "NewsMediaOrganization",
     name: SITE_NAME,
     url: siteUrl(),
     logo: absoluteUrl("/logo.png"),
@@ -35,17 +35,23 @@ export function websiteJsonLd() {
   };
 }
 
-export function newsArticleJsonLd(article: Article, category?: Category) {
+export function newsArticleJsonLd(article: Article, category?: Category, author?: { name: string; slug: string; photo?: string | null; xHandle?: string | null }) {
   const url = absoluteUrl(`/article/${article.slug}`);
   return {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: article.title,
     description: article.dek,
-    image: [absoluteUrl(article.coverImage)],
+    image: [absoluteUrl(article.image || article.coverImage)],
     datePublished: article.publishedAt,
-    dateModified: article.publishedAt,
-    author: { "@type": "Person", name: article.author },
+    dateModified: article.updatedAt && article.updatedAt > article.publishedAt ? article.updatedAt : article.publishedAt,
+    author: {
+      "@type": "Person",
+      name: author?.name ?? article.author,
+      ...(author ? { url: absoluteUrl("/author/" + author.slug) } : {}),
+      ...(author?.photo ? { image: absoluteUrl(author.photo) } : {}),
+      ...(author?.xHandle ? { sameAs: ["https://x.com/" + author.xHandle] } : {}),
+    },
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ensureCategories } from "@/lib/data/ensureCategories";
 import { prisma } from "@/lib/prisma";
+import { writerNames } from "@/lib/authors";
 import ArticleForm from "@/components/admin/ArticleForm";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { PublishButton } from "@/components/admin/ArticleActions";
@@ -9,9 +10,10 @@ import { PublishButton } from "@/components/admin/ArticleActions";
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await ensureCategories();
-  const [article, categories] = await Promise.all([
+  const [article, categories, authors] = await Promise.all([
     prisma.article.findUnique({ where: { id } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
+    writerNames(),
   ]);
 
   if (!article) notFound();
@@ -20,7 +22,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     <div>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-5xl font-black leading-none text-ink">Edit story</h1>
-        <StatusBadge status={article.status} />
+        <StatusBadge status={article.status} scheduled={!!article.publishedAt && article.publishedAt > new Date()} />
         {article.status === "PUBLISHED" && (
           <Link href={`/article/${article.slug}`} target="_blank" className="ml-auto rounded-full px-4 py-2 text-sm font-bold text-ink ring-1 ring-line hover:ring-ink">
             View live story
@@ -42,6 +44,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
         <ArticleForm
           categories={categories}
           aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+          authors={authors}
           initial={{
             id: article.id,
             title: article.title,
@@ -50,7 +53,10 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             body: article.body,
             image: article.image,
             imageAlt: article.imageAlt,
+            imageFocus: article.imageFocus ?? "",
             coverImage: article.coverImage ?? article.image,
+            shareText: article.shareText ?? "",
+            keyPoints: article.keyPoints,
             author: article.author,
             source: article.source ?? "",
             tags: article.tags,
@@ -58,6 +64,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             featured: article.featured,
             featuredVideoUrl: article.featuredVideoUrl ?? "",
             status: article.status,
+            // A story waiting for its time shows its schedule; a live one keeps its time unless changed.
+            publishAt: article.status === "PUBLISHED" && article.publishedAt && article.publishedAt > new Date() ? article.publishedAt.toISOString() : "",
             categoryId: article.categoryId,
           }}
         />

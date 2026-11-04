@@ -21,6 +21,8 @@ export interface ChatDraft {
   body: string;
   tags: string;
   imageAlt: string;
+  /** The "Key points" box, one point per line. */
+  keyPoints: string;
   category?: string;
   /** Posts from the "=== SOCIAL ===" section, when the reply has one. */
   social?: SocialKit;
@@ -57,11 +59,11 @@ export function clearHandoff() {
   }
 }
 
-type Label = "TITLE" | "STANDFIRST" | "CATEGORY" | "TAGS" | "IMAGE ALT" | "BODY";
+type Label = "TITLE" | "STANDFIRST" | "CATEGORY" | "TAGS" | "IMAGE ALT" | "KEY POINTS" | "BODY";
 
 /** Matches "TITLE:", "**Title:**", "Image alt -" and similar at the start of a line. */
 function labelOf(line: string): { label: Label; rest: string } | null {
-  const m = line.match(/^\s*[*_#]*\s*(TITLE|HEADLINE|STANDFIRST|DEK|CATEGORY|HUB|TAGS|IMAGE ALT|ALT TEXT|BODY|ARTICLE)\s*[*_]*\s*[:\-–]\s*[*_]*\s?(.*)$/i);
+  const m = line.match(/^\s*[*_#]*\s*(TITLE|HEADLINE|STANDFIRST|DEK|CATEGORY|HUB|TAGS|IMAGE ALT|ALT TEXT|KEY POINTS|BODY|ARTICLE)\s*[*_]*\s*[:\-–]\s*[*_]*\s?(.*)$/i);
   if (!m) return null;
   const key = m[1].toUpperCase();
   const label: Label =
@@ -112,6 +114,11 @@ export function parseChatDraft(input: string): ChatDraft | { error: string } {
       .filter(Boolean)
       .join(", "),
     imageAlt: fields["IMAGE ALT"] ?? "",
+    keyPoints: (fields["KEY POINTS"] ?? "")
+      .split("|")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .join("\n"),
     category: fields.CATEGORY?.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z-]/g, "") || undefined,
     social: socialText ? parseSocialSection(socialText) : undefined,
   };

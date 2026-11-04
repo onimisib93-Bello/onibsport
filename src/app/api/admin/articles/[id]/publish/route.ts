@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { afterArticleSaved } from "@/lib/articleSave";
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -10,6 +11,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     where: { id },
     data: { status: "PUBLISHED", publishedAt: existing.publishedAt ?? new Date() },
   });
-
+  afterArticleSaved();
   return NextResponse.json({ article });
 }

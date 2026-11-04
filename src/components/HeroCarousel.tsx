@@ -77,7 +77,7 @@ export default function HeroCarousel({ articles }: { articles: Article[] }) {
                 <Link href={`/article/${article.slug}`} tabIndex={i === selected ? 0 : -1} className="group block">
                   <div className="relative aspect-[4/5] w-full sm:aspect-[16/10] lg:aspect-auto lg:h-[min(72vh,640px)]">
                     <NewsImage
-                      src={article.image || article.coverImage}
+                      src={article.image || article.coverImage} focus={article.imageFocus}
                       alt={article.imageAlt}
                       fill
                       priority={i === 0}
@@ -187,7 +187,7 @@ export default function HeroCarousel({ articles }: { articles: Article[] }) {
                 )}
               >
                 <span className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-line">
-                  <NewsImage src={article.image} alt="" fill sizes="96px" className="object-cover" />
+                  <NewsImage src={article.image} focus={article.imageFocus} alt="" fill sizes="96px" className="object-cover" />
                 </span>
                 <span className="min-w-0">
                   <span className={cn("text-xs font-bold", active ? "text-orange" : "text-muted")}>{cat?.name}</span>

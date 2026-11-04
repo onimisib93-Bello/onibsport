@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { articleInputSchema } from "@/lib/validation/article";
+import { afterArticleSaved, articleData } from "@/lib/articleSave";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,28 +27,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "An article with this slug already exists." }, { status: 409 });
   }
 
-  const article = await prisma.article.update({
-    where: { id },
-    data: {
-      title: data.title,
-      slug: data.slug,
-      dek: data.dek,
-      body: data.body,
-      image: data.image,
-      imageAlt: data.imageAlt,
-      coverImage: data.coverImage || null,
-      author: data.author,
-      source: data.source || null,
-      tags: data.tags || "",
-      isBreaking: !!data.isBreaking,
-      featured: !!data.featured,
-      featuredVideoUrl: data.featuredVideoUrl || null,
-      status: data.status,
-      categoryId: data.categoryId,
-      publishedAt: data.status === "PUBLISHED" ? (existing.publishedAt ?? new Date()) : existing.publishedAt,
-    },
-  });
-
+  const article = await prisma.article.update({ where: { id }, data: articleData(data, existing) });
+  afterArticleSaved();
   return NextResponse.json({ article });
 }
 

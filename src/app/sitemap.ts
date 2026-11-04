@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllPublishedForSitemap } from "@/lib/data/db-articles";
 import { categories } from "@/lib/data/categories";
+import { authorSlug } from "@/lib/authors";
 
 function siteUrl() {
   return process.env.SITE_URL ?? "http://localhost:3000";
@@ -24,10 +25,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const published = await getAllPublishedForSitemap();
   const articleRoutes: MetadataRoute.Sitemap = published.map((a) => ({
     url: `${base}/article/${a.slug}`,
-    lastModified: a.publishedAt ?? undefined,
+    lastModified: a.updatedAt > (a.publishedAt ?? a.updatedAt) ? a.updatedAt : (a.publishedAt ?? undefined),
     changeFrequency: "daily",
     priority: 0.9,
   }));
 
-  return [...staticRoutes, ...categoryRoutes, ...articleRoutes];
+  const authorRoutes: MetadataRoute.Sitemap = [...new Set(published.map((a) => authorSlug(a.author)))].map((slug) => ({
+    url: `${base}/author/${slug}`,
+    changeFrequency: "weekly",
+    priority: 0.4,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...articleRoutes, ...authorRoutes];
 }

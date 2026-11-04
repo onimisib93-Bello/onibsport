@@ -59,7 +59,7 @@ export default function ArticleCard({
     return (
       <Link href={href} className={cn("group flex gap-3", className)}>
         <div className="relative h-[68px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-line">
-          <NewsImage src={article.image} alt={article.imageAlt} fill sizes="96px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+          <NewsImage src={article.image} focus={article.imageFocus} alt={article.imageAlt} fill sizes="96px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
         </div>
         <div className="min-w-0">
           <Kicker article={article} />
@@ -85,7 +85,7 @@ export default function ArticleCard({
           </div>
         </div>
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-line">
-          <NewsImage src={article.image} alt={article.imageAlt} fill sizes="(min-width: 640px) 220px, 120px" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+          <NewsImage src={article.image} focus={article.imageFocus} alt={article.imageAlt} fill sizes="(min-width: 640px) 220px, 120px" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
           <VideoBadge article={article} />
         </div>
       </Link>
@@ -97,7 +97,7 @@ export default function ArticleCard({
       <Link href={href} className={cn("group relative block overflow-hidden rounded-2xl bg-night", className)}>
         <div className="relative aspect-[4/5] w-full sm:aspect-[3/4]">
           <NewsImage
-            src={article.image}
+            src={article.image} focus={article.imageFocus}
             alt={article.imageAlt}
             fill
             priority={priority}
@@ -123,7 +123,7 @@ export default function ArticleCard({
       <Link href={href} className={cn("group block", className)}>
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-line">
           <NewsImage
-            src={article.image}
+            src={article.image} focus={article.imageFocus}
             alt={article.imageAlt}
             fill
             priority={priority}
@@ -154,7 +154,7 @@ export default function ArticleCard({
     <Link href={href} className={cn("group block", className)}>
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-line">
         <NewsImage
-          src={article.image}
+          src={article.image} focus={article.imageFocus}
           alt={article.imageAlt}
           fill
           priority={priority}

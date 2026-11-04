@@ -176,7 +176,7 @@ export default function SearchPalette({ open, onClose }: { open: boolean; onClos
                     className={`flex w-full cursor-pointer items-center gap-3 rounded-xl p-2 text-left transition-colors ${i === active ? "bg-paper" : ""}`}
                   >
                     <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-line">
-                      <NewsImage src={a.image} alt="" fill sizes="80px" className="object-cover" />
+                      <NewsImage src={a.image} focus={a.imageFocus} alt="" fill sizes="80px" className="object-cover" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold text-muted">
