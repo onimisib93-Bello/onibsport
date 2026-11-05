@@ -81,8 +81,8 @@ function ShareImage({
         Share image
       </h3>
       <p className="mt-1 text-xs text-muted">
-        One image for Facebook, Instagram and TikTok: 1080 × 1350 portrait (4:5), with &quot;Link in the comments for more&quot; under the headline. Put the story link
-        in the first comment.
+        One image for Facebook, Instagram and TikTok: 1080 × 1350 portrait (4:5), with &quot;Link in bio for more&quot; under the headline. Readers find the story on your
+        links page, under &quot;Just posted&quot;.
       </p>
       <div className="mt-3 grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- a generated PNG from our own route */}

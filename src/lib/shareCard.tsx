@@ -4,7 +4,7 @@ import { ImageResponse } from "next/og";
  * Onibsport's share card, drawn as a PNG, matching the house template: the
  * photo fills the frame and fades to near-black at the bottom, the logo sits
  * top-left, and a huge white headline sits centred in the lower third with an
- * orange "LINK IN THE COMMENTS FOR MORE" line under it.
+ * orange "LINK IN BIO FOR MORE" line under it (the bio link is the /links hub).
  *
  * One design in two shapes:
  * - "portrait" 1080 × 1350 (4:5) for Facebook + Instagram and TikTok photo
@@ -170,8 +170,8 @@ export async function renderShareCard({
             {copy}
           </div>
           <div style={{ display: "flex", marginTop: s.gap, fontSize: s.cta, color: ORANGE, letterSpacing: 2, textTransform: "uppercase" }}>
-            {/* On a post the link goes in the first comment; a link preview is the link itself. */}
-            {portrait ? "Link in the comments for more" : "Tap to read the full story"}
+            {/* On a post readers go through the bio link (the /links hub); a link preview is the link itself. */}
+            {portrait ? "Link in bio for more" : "Tap to read the full story"}
           </div>
         </div>
       </div>
