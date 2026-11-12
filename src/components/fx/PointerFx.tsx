@@ -87,11 +87,21 @@ export default function PointerFx() {
       }
     };
 
+    let moved = false;
     const onMove = (e: PointerEvent) => {
       x = e.clientX;
       y = e.clientY;
+      moved = true;
       target = e.target instanceof Element ? e.target : null;
       if (!frame) frame = requestAnimationFrame(update);
+    };
+    // Scrolling moves the page under a still pointer: look again at what is beneath it.
+    const onScrollUnderPointer = () => {
+      if (!moved || frame) return;
+      frame = requestAnimationFrame(() => {
+        target = document.elementFromPoint(x, y);
+        update();
+      });
     };
     const onLeave = () => {
       target = null;
@@ -99,12 +109,14 @@ export default function PointerFx() {
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("scroll", onScrollUnderPointer, { passive: true });
     document.addEventListener("pointerleave", onLeave);
     // A page change can leave the badge showing over nothing.
     window.addEventListener("pointerdown", onLeave, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("scroll", onScrollUnderPointer);
       document.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("pointerdown", onLeave);
       if (frame) cancelAnimationFrame(frame);
