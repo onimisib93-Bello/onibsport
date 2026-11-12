@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Archivo } from "next/font/google";
 import "../globals.css";
 import Analytics from "@/components/Analytics";
+import PointerFx from "@/components/fx/PointerFx";
 
 /**
  * A bare layout for the link-in-bio hub (/links): no header, ticker, footer or
@@ -40,6 +41,7 @@ export default function BioLayout({ children }: { children: React.ReactNode }) {
       <body className="min-h-full" style={{ background: "#120a33", color: "#ffffff" }}>
         {children}
         <Analytics />
+        <PointerFx />
       </body>
     </html>
   );

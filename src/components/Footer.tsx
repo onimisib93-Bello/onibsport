@@ -8,9 +8,9 @@ import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
   return (
-    <footer className="relative mt-20 overflow-hidden bg-night text-white">
+    <footer data-spot="" className="grain relative mt-20 overflow-hidden bg-night text-white [--spot-size:560px]">
       <div className="pitch-lines pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
-      <div className="relative mx-auto max-w-[1400px] px-4 pt-14 sm:px-6">
+      <div className="relative z-[2] mx-auto max-w-[1400px] px-4 pt-14 sm:px-6">
         <div className="grid gap-12 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
           <div>
             <Link href="/" className="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
@@ -99,7 +99,7 @@ export default function Footer() {
 
         <p
           aria-hidden="true"
-          className="pointer-events-none mt-16 select-none text-center font-display text-[22vw] font-black leading-[0.75] tracking-tighter text-white/[0.06] lg:text-[17rem]"
+          className="pointer-events-none mt-16 select-none text-center font-display text-[22vw] font-black leading-[0.75] tracking-tighter text-white/[0.06] sd-fill lg:text-[17rem]"
         >
           ONIBSPORT
         </p>

@@ -19,6 +19,7 @@ import { breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 import { shareImageFor } from "@/lib/shareImage";
 import { authorPath, getAuthorByName, initials } from "@/lib/authors";
 import BreakingAlerts from "@/components/BreakingAlerts";
+import ViewTransition, { storyPhotoName } from "@/components/fx/ViewTransition";
 
 export const revalidate = 60;
 
@@ -164,6 +165,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <ArticleVideo src={article.featuredVideoUrl} title={article.title} poster={article.image || article.coverImage} />
           ) : (
             <figure>
+              {/* Shares its name with the story card it was opened from, so the photo grows into place. */}
+              <ViewTransition name={storyPhotoName(article.slug)} share="morph" default="none">
+                <div>
               <FullImage
                 src={article.image || article.coverImage}
                 alt={article.imageAlt}
@@ -171,6 +175,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 sizes="(min-width: 1100px) 1100px, 100vw"
                 className="rounded-3xl"
               />
+                </div>
+              </ViewTransition>
               <figcaption className="mt-2 text-sm text-muted">{article.imageAlt}</figcaption>
             </figure>
           )}
@@ -298,7 +304,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
       {nextStory && (
         <section aria-label="Next story" className="mx-auto mt-16 max-w-[1100px] px-4 sm:px-6">
-          <Link href={`/article/${nextStory.slug}`} className="group relative block overflow-hidden rounded-3xl bg-night text-white">
+          <Link
+            href={`/article/${nextStory.slug}`}
+            data-cursor="Next story"
+            data-parallax=""
+            className="group grain relative block overflow-hidden rounded-3xl bg-night text-white"
+          >
             <NewsImage
               src={nextStory.image || nextStory.coverImage} focus={nextStory.imageFocus}
               alt=""
@@ -307,7 +318,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               className="object-cover opacity-40 transition-transform duration-[1200ms] group-hover:scale-105"
             />
             <span className="absolute inset-0 bg-gradient-to-r from-night via-night/70 to-transparent" />
-            <span className="relative block p-8 sm:p-12">
+            <span className="relative z-[2] block p-8 sm:p-12">
               <span className="text-sm font-bold text-orange">Next story</span>
               <span className="mt-2 block max-w-2xl font-display text-4xl font-black leading-[0.95] sm:text-5xl">{nextStory.title}</span>
             </span>

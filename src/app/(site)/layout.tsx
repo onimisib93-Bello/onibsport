@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import NewsletterModal from "@/components/NewsletterModal";
 import BreakingToast from "@/components/BreakingToast";
 import Analytics from "@/components/Analytics";
+import PointerFx from "@/components/fx/PointerFx";
 import { getFirstBreakingArticle } from "@/lib/data/db-articles";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
@@ -80,6 +81,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           Skip to content
         </a>
+        <div className="scroll-progress" aria-hidden="true" />
         <LiveTicker />
         <Header />
         <main id="main" className="flex-1">
@@ -89,6 +91,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <BreakingToast article={breaking} />
         <NewsletterModal />
         <Analytics />
+        <PointerFx />
       </body>
     </html>
   );

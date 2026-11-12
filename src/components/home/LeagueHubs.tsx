@@ -51,7 +51,9 @@ export default function LeagueHubs() {
               <li key={c.slug}>
                 <Link
                   href={`/category/${c.slug}`}
-                  className="flex items-center gap-2.5 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold ring-1 ring-white/10 transition-colors hover:bg-white/[0.12] hover:ring-white/25"
+                  data-glow=""
+                  data-spot=""
+                  className="relative flex items-center gap-2.5 overflow-hidden rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold ring-1 ring-white/10 transition-colors hover:bg-white/[0.1] [--spot-size:160px]"
                 >
                   <LeagueCrest slug={c.slug} size={26} />
                   <span className="truncate">{c.name}</span>

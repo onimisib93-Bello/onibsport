@@ -20,11 +20,15 @@ export default function SectionHeading({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-end justify-between gap-4", className)}>
+    <div className={cn("relative flex items-end justify-between gap-4 pb-4", className)}>
+      {/* The title rises out of its baseline and the rule draws across as the section scrolls into view. */}
       <h2 id={id} className={cn("flex items-center gap-3 font-display text-4xl font-black leading-none sm:text-5xl", tone === "dark" ? "text-white" : "text-ink")}>
         {color && <span aria-hidden="true" className="h-8 w-2 rounded-full sm:h-10" style={{ background: color }} />}
-        {title}
+        <span className="-my-1 block overflow-hidden py-1">
+          <span className="sd-rise block">{title}</span>
+        </span>
       </h2>
+      <span aria-hidden="true" className={cn("sd-rule absolute inset-x-0 bottom-0 h-px", tone === "dark" ? "bg-white/20" : "bg-ink/15")} />
       {href && (
         <Link
           href={href}

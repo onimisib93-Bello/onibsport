@@ -20,14 +20,30 @@ export default function Header() {
   const reduce = useReducedMotion();
   const { scrollY } = useScroll();
   const lastY = useRef(0);
+  const runStart = useRef(0);
+  const direction = useRef(0);
 
-  // The league rail tucks away while reading down the page and returns on any scroll up.
+  // The league rail tucks away while reading down the page and returns when the reader scrolls
+  // back up. It only reacts to a deliberate scroll (48px the same way), never to the small
+  // position corrections browsers make when images load or a phone's address bar slides.
   useMotionValueEvent(scrollY, "change", (y) => {
     const delta = y - lastY.current;
     lastY.current = y;
-    if (y < 140) setRailHidden(false);
-    else if (delta > 6) setRailHidden(true);
-    else if (delta < -6) setRailHidden(false);
+    if (y < 140) {
+      setRailHidden(false);
+      direction.current = 0;
+      runStart.current = y;
+      return;
+    }
+    const way = Math.sign(delta);
+    if (way === 0) return;
+    if (way !== direction.current) {
+      direction.current = way;
+      runStart.current = y - delta;
+    }
+    const travelled = y - runStart.current;
+    if (travelled > 48) setRailHidden(true);
+    else if (travelled < -48) setRailHidden(false);
   });
 
   useEffect(() => {
@@ -64,7 +80,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur-xl backdrop-saturate-150">
+      <header className="site-header sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 sm:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Onibsport home">
             <Image src="/logo.png" alt="" width={44} height={39} priority className="h-10 w-auto" />
@@ -110,7 +126,9 @@ export default function Header() {
             </button>
             <Link
               href="/live-scores"
-              className="hidden h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo md:inline-flex"
+              data-magnetic="6"
+              data-spot=""
+              className="relative hidden h-10 items-center gap-2 overflow-hidden rounded-full bg-night px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo md:inline-flex"
             >
               <Broadcast size={18} weight="bold" className="text-orange" aria-hidden="true" />
               Live scores
@@ -128,13 +146,21 @@ export default function Header() {
           </div>
         </div>
 
-        {/* League rail: every hub, coloured by its kit. */}
-        <motion.nav
+        {/*
+          League rail: every hub, coloured by its kit. It hangs below the bar and slides away
+          behind it, so hiding it never changes the height of anything. (It used to collapse
+          its own height, which moved the whole page, which the scroll watcher then read as a
+          scroll in the other direction: the page shook up and down.) The spacer after the
+          header keeps its room at the top of the page.
+        */}
+        <div className={cn("absolute inset-x-0 top-full z-10 h-[49px] overflow-hidden", railHidden && "pointer-events-none")}>
+        <nav
           aria-label="Leagues"
-          initial={false}
-          animate={railHidden ? { height: 0, opacity: 0 } : { height: "auto", opacity: 1 }}
-          transition={{ duration: reduce ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="overflow-hidden border-t border-line/70"
+          inert={railHidden}
+          className={cn(
+            "border-y border-line/70 bg-white transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none",
+            railHidden ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"
+          )}
         >
           <ul className="no-scrollbar mx-auto flex h-12 max-w-[1400px] items-stretch gap-1 overflow-x-auto px-4 sm:px-6">
             {categories.map((c) => {
@@ -166,8 +192,11 @@ export default function Header() {
               );
             })}
           </ul>
-        </motion.nav>
+        </nav>
+        </div>
       </header>
+      {/* Room for the league rail at the top of the page (the rail itself is out of the flow). */}
+      <div aria-hidden="true" className="h-12" />
 
       {/* Mobile drawer */}
       <AnimatePresence>
