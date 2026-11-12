@@ -5,6 +5,7 @@ import { getCategory } from "@/lib/data/categories";
 import { leagueTheme } from "@/lib/leagues";
 import TimeAgo from "@/components/ui/TimeAgo";
 import NewsImage from "@/components/ui/NewsImage";
+import ViewTransition, { storyPhotoName } from "@/components/fx/ViewTransition";
 import { cn } from "@/lib/utils";
 
 type Size = "default" | "compact" | "large" | "row" | "overlay";
@@ -63,7 +64,9 @@ export default function ArticleCard({
         </div>
         <div className="min-w-0">
           <Kicker article={article} />
-          <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-indigo">{article.title}</h3>
+          <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-indigo">
+            <span className="link-draw">{article.title}</span>
+          </h3>
         </div>
       </Link>
     );
@@ -75,7 +78,7 @@ export default function ArticleCard({
         <div className="min-w-0">
           <Kicker article={article} />
           <h3 className="mt-1.5 font-display text-[22px] font-extrabold leading-[1.05] text-ink transition-colors group-hover:text-indigo sm:text-[28px]">
-            {article.title}
+            <span className="link-draw">{article.title}</span>
           </h3>
           <div className="hidden sm:block">
             <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-muted">{article.dek}</p>
@@ -94,7 +97,7 @@ export default function ArticleCard({
 
   if (size === "overlay") {
     return (
-      <Link href={href} className={cn("group relative block overflow-hidden rounded-2xl bg-night", className)}>
+      <Link href={href} data-tilt="5" data-spot="" data-cursor="Read story" className={cn("group shine relative block overflow-hidden rounded-2xl bg-night", className)}>
         <div className="relative aspect-[4/5] w-full sm:aspect-[3/4]">
           <NewsImage
             src={article.image} focus={article.imageFocus}
@@ -121,21 +124,26 @@ export default function ArticleCard({
   if (size === "large") {
     return (
       <Link href={href} className={cn("group block", className)}>
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-line">
-          <NewsImage
-            src={article.image} focus={article.imageFocus}
-            alt={article.imageAlt}
-            fill
-            priority={priority}
-            sizes="(min-width: 1024px) 60vw, 100vw"
-            className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.03]"
-          />
-          <VideoBadge article={article} />
-        </div>
+        {/* The lead photo opens like a curtain as it scrolls in, and grows into the article when opened. */}
+        <ViewTransition name={storyPhotoName(article.slug)} share="morph" default="none">
+          <div data-cursor="Read story" className="sd-curtain relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-line">
+            <div className="sd-zoom-out absolute inset-0">
+              <NewsImage
+                src={article.image} focus={article.imageFocus}
+                alt={article.imageAlt}
+                fill
+                priority={priority}
+                sizes="(min-width: 1024px) 60vw, 100vw"
+                className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.03]"
+              />
+            </div>
+            <VideoBadge article={article} />
+          </div>
+        </ViewTransition>
         <div className="mt-4">
           <Kicker article={article} />
           <h2 className="mt-2 font-display text-[34px] font-black leading-[0.98] text-ink transition-colors group-hover:text-indigo sm:text-[44px]">
-            {article.title}
+            <span className="link-draw">{article.title}</span>
           </h2>
           <p className="mt-3 max-w-2xl text-[16px] leading-relaxed text-muted">{article.dek}</p>
           <p className="mt-3 text-xs text-muted">
@@ -166,7 +174,7 @@ export default function ArticleCard({
       <div className="mt-3">
         <Kicker article={article} />
         <h3 className="mt-1.5 line-clamp-3 font-display text-[23px] font-extrabold leading-[1.04] text-ink transition-colors group-hover:text-indigo">
-          {article.title}
+          <span className="link-draw">{article.title}</span>
         </h3>
         <div className="mt-1.5">
           <Meta article={article} />

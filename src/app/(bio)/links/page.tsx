@@ -109,26 +109,40 @@ export default async function LinksPage({ searchParams }: { searchParams: Promis
 
   return (
     // The page sets its own night background and white text: the site-wide body style would otherwise paint it paper-white.
-    <div className="relative min-h-screen overflow-hidden bg-night text-white">
+    <div data-spot="" className="grain relative min-h-screen overflow-hidden bg-night text-white [--spot-color:rgb(247_148_29_/_0.1)] [--spot-size:520px]">
       <div className="pitch-lines pointer-events-none absolute inset-0 opacity-50" aria-hidden="true" />
+      {/* Stadium floodlights sweeping slowly across the night. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <span className="beam left-[-12%]" style={{ "--from": "-6deg", "--to": "-22deg", "--beam-time": "11s" } as React.CSSProperties} />
+        <span
+          className="beam right-[-12%]"
+          style={{ "--from": "8deg", "--to": "24deg", "--beam-time": "13s", "--beam-color": "rgb(41 171 226 / 0.2)" } as React.CSSProperties}
+        />
+      </div>
       <div
         className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-orange/20 blur-[120px]"
         aria-hidden="true"
       />
 
-      <main className="relative mx-auto flex max-w-[480px] flex-col px-4 pb-12 pt-10 sm:pt-14">
+      <main className="relative z-[2] mx-auto flex max-w-[480px] flex-col px-4 pb-12 pt-10 sm:pt-14">
         <header className="flex flex-col items-center text-center">
-          <span className="grid h-24 w-24 place-items-center rounded-full bg-white shadow-[0_0_0_6px_rgba(247,148,29,0.25)]">
-            <Image src="/logo.png" alt="" width={586} height={514} priority className="h-16 w-auto" />
+          <span className="load-in relative grid h-[108px] w-[108px] place-items-center" style={{ "--i": 0 } as React.CSSProperties}>
+            <span className="ring-turn absolute inset-0 rounded-full" aria-hidden="true" />
+            <span className="ring-turn absolute inset-0 rounded-full opacity-60 blur-xl" aria-hidden="true" />
+            <span className="relative grid h-24 w-24 place-items-center rounded-full bg-white">
+              <Image src="/logo.png" alt="" width={586} height={514} priority className="h-16 w-auto" />
+            </span>
           </span>
-          <h1 className="mt-5 font-display text-5xl font-black leading-none tracking-tight">
+          <h1 className="load-in mt-5 font-display text-5xl font-black leading-none tracking-tight" style={{ "--i": 1 } as React.CSSProperties}>
             Onib<span className="text-orange">sport</span>
           </h1>
-          <p className="mt-3 max-w-xs text-[15px] leading-relaxed text-white/70">Football news, transfers and live scores, from Lagos to London.</p>
+          <p className="load-in mt-3 max-w-xs text-[15px] leading-relaxed text-white/70" style={{ "--i": 2 } as React.CSSProperties}>
+            Football news, transfers and live scores, from Lagos to London.
+          </p>
         </header>
 
         <nav aria-label="Onibsport links" className="mt-8 space-y-3">
-          {buttons.map(({ href, label, sub, Icon, tone, iconTone, external }) => {
+          {buttons.map(({ href, label, sub, Icon, tone, iconTone, external }, i) => {
             const inner = (
               <>
                 <span className={cn("grid h-12 w-12 shrink-0 place-items-center rounded-xl", iconTone)}>
@@ -141,25 +155,30 @@ export default async function LinksPage({ searchParams }: { searchParams: Promis
                 {external ? <ArrowUpRight size={20} weight="bold" aria-hidden="true" /> : <ArrowRight size={20} weight="bold" aria-hidden="true" />}
               </>
             );
-            const className = cn("flex items-center gap-4 rounded-2xl p-3 pr-5 transition-colors", tone);
-            return external ? (
-              <a key={label} href={href} target="_blank" rel="noopener noreferrer" className={className}>
-                {inner}
-              </a>
-            ) : (
-              <Link key={label} href={href} className={className}>
-                {inner}
-              </Link>
+            const className = cn("shine relative flex items-center gap-4 overflow-hidden rounded-2xl p-3 pr-5 transition-colors [--glow-color:#ffffff]", tone);
+            const fx = { "data-tilt": "4", "data-glow": "", className };
+            return (
+              <div key={label} className="load-in" style={{ "--i": i + 3 } as React.CSSProperties}>
+                {external ? (
+                  <a href={href} target="_blank" rel="noopener noreferrer" {...fx}>
+                    {inner}
+                  </a>
+                ) : (
+                  <Link href={href} {...fx}>
+                    {inner}
+                  </Link>
+                )}
+              </div>
             );
           })}
         </nav>
 
-        <div className="mt-4 flex justify-center">
+        <div className="load-in mt-4 flex justify-center" style={{ "--i": 6 } as React.CSSProperties}>
           <BreakingAlerts tone="dark" />
         </div>
 
         {stories.length > 0 && (
-          <section aria-labelledby="just-posted" className="mt-10">
+          <section aria-labelledby="just-posted" className="load-in mt-10" style={{ "--i": 7 } as React.CSSProperties}>
             <h2 id="just-posted" className="flex items-center gap-2 text-sm font-bold text-orange">
               <span className="h-2 w-2 animate-pulse rounded-full bg-orange" aria-hidden="true" />
               Just posted
@@ -170,10 +189,12 @@ export default async function LinksPage({ searchParams }: { searchParams: Promis
                 <li key={story.slug}>
                   <Link
                     href={track(`/article/${story.slug}`)}
-                    className="group flex items-center gap-3 rounded-2xl bg-white/[0.06] p-2.5 pr-4 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1]"
+                    data-glow=""
+                    data-spot=""
+                    className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-white/[0.06] p-2.5 pr-4 ring-1 ring-white/10 transition-colors hover:bg-white/[0.09] [--spot-size:220px]"
                   >
                     <span className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-white/10">
-                      <NewsImage src={story.image} focus={story.imageFocus} alt="" fill sizes="72px" className="object-cover" />
+                      <NewsImage src={story.image} focus={story.imageFocus} alt="" fill sizes="72px" className="object-cover transition-transform duration-700 group-hover:scale-110" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs font-bold text-white/55">
@@ -208,6 +229,7 @@ export default async function LinksPage({ searchParams }: { searchParams: Promis
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Onibsport on ${label}`}
+                    data-magnetic="5"
                     className="grid h-12 w-12 place-items-center rounded-full bg-white/10 transition-colors hover:bg-orange hover:text-ink"
                   >
                     <Icon size={22} weight="fill" aria-hidden="true" />

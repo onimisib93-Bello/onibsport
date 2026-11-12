@@ -64,7 +64,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur-xl backdrop-saturate-150">
+      <header className="site-header sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 sm:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Onibsport home">
             <Image src="/logo.png" alt="" width={44} height={39} priority className="h-10 w-auto" />
@@ -110,7 +110,9 @@ export default function Header() {
             </button>
             <Link
               href="/live-scores"
-              className="hidden h-10 items-center gap-2 rounded-full bg-night px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo md:inline-flex"
+              data-magnetic="6"
+              data-spot=""
+              className="relative hidden h-10 items-center gap-2 overflow-hidden rounded-full bg-night px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo md:inline-flex"
             >
               <Broadcast size={18} weight="bold" className="text-orange" aria-hidden="true" />
               Live scores
