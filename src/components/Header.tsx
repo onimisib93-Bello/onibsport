@@ -153,12 +153,12 @@ export default function Header() {
           scroll in the other direction: the page shook up and down.) The spacer after the
           header keeps its room at the top of the page.
         */}
-        <div className={cn("absolute inset-x-0 top-full h-[49px] overflow-hidden", railHidden && "pointer-events-none")}>
+        <div className={cn("absolute inset-x-0 top-full z-10 h-[49px] overflow-hidden", railHidden && "pointer-events-none")}>
         <nav
           aria-label="Leagues"
           inert={railHidden}
           className={cn(
-            "border-y border-line/70 bg-white/[0.97] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none",
+            "border-y border-line/70 bg-white transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none",
             railHidden ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"
           )}
         >
