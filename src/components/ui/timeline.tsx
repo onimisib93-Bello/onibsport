@@ -9,6 +9,7 @@ import {
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
+import { showFallbackPhoto } from "@/lib/imageUrl";
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, SplitText);
 }
@@ -315,6 +316,7 @@ export default function Timeline({
               src={imageUrl}
               alt={imageAlt}
               draggable={false}
+              onError={showFallbackPhoto}
               className="h-full w-full object-cover"
             />
           </div>

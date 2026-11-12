@@ -12,6 +12,7 @@
 // the front, and every whole number after that is one more item turned past.
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { showFallbackPhoto } from "@/lib/imageUrl";
 export interface WorksWheelItem {
 /** Project name. Shown beside the front card and in the index. */
 title: string;
@@ -339,6 +340,9 @@ marginTop: -metrics.cardH / 2,
 src={item.image}
 alt={item.title}
 draggable={false}
+loading="lazy"
+decoding="async"
+onError={showFallbackPhoto}
 className="size-full object-cover"
 />
 {action && item.href ? (

@@ -6,6 +6,7 @@ import { WorksWheel } from "@/components/ui/works-wheel";
 import ArticleCard from "@/components/ArticleCard";
 import SwipeRow from "@/components/ui/SwipeRow";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { optimizedSrc } from "@/lib/imageUrl";
 
 /**
  * Editor's picks as a turnable wheel on large screens with a mouse or
@@ -35,7 +36,7 @@ export default function EditorsPicks({ articles }: { articles: Article[] }) {
             items={articles.map((a) => ({
               id: a.slug,
               title: a.title,
-              image: a.image || a.coverImage,
+              image: optimizedSrc(a.image || a.coverImage, 828),
               href: `/article/${a.slug}`,
               kicker: getCategory(a.category)?.name,
             }))}

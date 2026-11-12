@@ -12,6 +12,7 @@ import {
 } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { showFallbackPhoto } from "@/lib/imageUrl";
 // per-image rest scale, keyed by img index (1-8). default 1, drop below to shrink.
 const SCALE: Partial<Record<number, number>> = {
   1: 0.9,
@@ -279,6 +280,9 @@ function CardFace({
         src={item.src}
         alt={item.alt ?? ""}
         draggable={false}
+        loading="lazy"
+        decoding="async"
+        onError={showFallbackPhoto}
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
       {item.caption && (
