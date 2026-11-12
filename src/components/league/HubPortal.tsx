@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import GlyphPortal from "@/components/ui/glyph-portal";
 import { useDisplayFont } from "@/lib/useDisplayFont";
+import { optimizedSrc, showFallbackPhoto } from "@/lib/imageUrl";
 
 /**
  * Hub opening for the Nigerian desks: the camera flies through a letter of the
@@ -50,7 +51,12 @@ export default function HubPortal({
           <div style={{ position: "absolute", inset: 0, transform: "scale(var(--gp-field-scale,1))", background: deep }}>
             {image && (
               // eslint-disable-next-line @next/next/no-img-element -- painted inside an SVG clip and scaled every frame
-              <img src={image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
+              <img
+                src={optimizedSrc(image, 1200)}
+                alt=""
+                onError={showFallbackPhoto}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }}
+              />
             )}
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent 20%, ${deep} 95%)` }} />
           </div>

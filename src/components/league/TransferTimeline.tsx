@@ -3,6 +3,7 @@
 import Timeline from "@/components/ui/timeline";
 import { Article } from "@/lib/types";
 import { formatDay } from "@/lib/time";
+import { optimizedSrc } from "@/lib/imageUrl";
 
 /**
  * The window so far: the latest transfer stories laid out on a horizontal
@@ -28,7 +29,7 @@ export default function TransferTimeline({ articles }: { articles: Article[] }) 
         textColor="#ffffff"
         mutedTextColor="rgb(255 255 255 / 0.7)"
         activeColor="#fbb03b"
-        imageUrl={last.image || last.coverImage}
+        imageUrl={optimizedSrc(last.image || last.coverImage, 1200)}
         imageAlt={last.imageAlt}
         duration={1.2}
       />
