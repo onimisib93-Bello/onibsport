@@ -8,7 +8,6 @@ import NewsletterModal from "@/components/NewsletterModal";
 import BreakingToast from "@/components/BreakingToast";
 import Analytics from "@/components/Analytics";
 import PointerFx from "@/components/fx/PointerFx";
-import ViewTransition from "@/components/fx/ViewTransition";
 import { getFirstBreakingArticle } from "@/lib/data/db-articles";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
@@ -86,7 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LiveTicker />
         <Header />
         <main id="main" className="flex-1">
-          <ViewTransition>{children}</ViewTransition>
+          {children}
         </main>
         <Footer />
         <BreakingToast article={breaking} />
